@@ -195,6 +195,8 @@
   .aslp-btn:hover { background: #c0391e; border-color: #c0391e; }
   .dl-group { align-items: center; }
   .map { height: 480px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-0); z-index: 0; }
+  .map .leaflet-tile-pane { filter: grayscale(.65) brightness(1.04) contrast(.92); }
+  .map.map-dark .leaflet-tile-pane { filter: grayscale(.8) invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
   .map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
   .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
   .map-legend i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15); display: inline-block; }
@@ -682,14 +684,14 @@ function isDark() {
 }
 function setTiles() {
   if (!map) return;
-  const style = isDark() ? "dark_all" : "light_all";
-  if (tileLayer && tileLayer._style === style) return;
-  if (tileLayer) map.removeLayer(tileLayer);
-  tileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
-    subdomains: "abcd", maxZoom: 18,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
-  }).addTo(map);
-  tileLayer._style = style;
+  if (!tileLayer) {
+    tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    }).addTo(map);
+  }
+  // soften the map in light mode; darken it in dark mode
+  $("map").classList.toggle("map-dark", isDark());
 }
 function ensureMap() {
   if (map || !window.L || !$("map") || $("view-dashboard").hidden) return;
