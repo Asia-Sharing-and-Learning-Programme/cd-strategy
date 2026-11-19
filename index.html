@@ -43,6 +43,7 @@
     --ok-bg: #16301a; --ok-ink: #8fd88f;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
          background: var(--surface-0); color: var(--text-primary); }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 48px; }
@@ -352,7 +353,7 @@
             <div class="field"><label for="f-period-from">Strategy period: from</label><select id="f-period-from"></select></div>
             <div class="field"><label for="f-period-to">Strategy period: to</label><select id="f-period-to"></select></div>
           </div>
-          <div class="field"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
+          <div class="field" id="f-target-wrap"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
           <div class="field"><label for="f-doc">Document link</label><input type="url" id="f-doc" maxlength="1000" placeholder="https://… (SharePoint, OneDrive, Google Drive)"></div>
           <div class="field"><label for="f-cwg">CWG</label><input type="text" id="f-cwg" maxlength="60" list="cwg-options"><datalist id="cwg-options"></datalist></div>
         </div>
@@ -500,6 +501,8 @@ const ZONES = [
   { key: "SPEA", label: "South Pacific and East Asia (SPEA)", test: c => /^spea/i.test(c) },
   { key: "SASIA", label: "South Asia (SASIA)", test: c => /^(sasia|south asia)/i.test(c) },
 ];
+// No approval target once the strategy is being implemented
+const targetOf = t => t.status === "implementing" ? "" : (t.target || "");
 const cwgOf = t => (t.cwg || "").trim() || DEFAULT_CWG[t.id] || UNASSIGNED;
 const zoneOfCwg = c => (ZONES.find(z => z.test(c)) || { key: "OTHER" }).key;
 const zoneOf = t => zoneOfCwg(cwgOf(t));
@@ -669,7 +672,7 @@ function renderTable() {
       <td><a class="tname" href="#territory-${esc(t.id)}">${esc(t.name)}</a></td>
       <td class="nowrap">${esc(cwgOf(t))}</td>
       <td>${t.focal ? esc(t.focal) : '<span class="muted">—</span>'}</td>
-      <td>${esc(t.target || "")}</td>
+      <td>${esc(targetOf(t))}</td>
       <td>${i >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(STATUSES[i].label)}</span>` : '<span class="muted">—</span>'}</td>
       <td>${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : '<span class="muted">—</span>'}</td>
     </tr>`;
@@ -772,6 +775,7 @@ function setStep(n) {
       $("details-locked").hidden = true; $("details-form").hidden = false;
       DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] || ""); });
       periodToSelects(t.strategyPeriod);
+      $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details & finish"; skip.hidden = false; skip.textContent = "Finish without details";
       $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
@@ -916,7 +920,7 @@ function renderDatabase() {
   const cnt = {}; logs.forEach(l => { cnt[l.territoryId] = (cnt[l.territoryId] || 0) + 1; });
   const cols = [["name", "Territory"], ["focal", "Focal person"], ["target", "Target"], ["status", "Status"], ["lastUpdated", "Last updated"], ["updates", "Updates"]];
   const rows = territories.map(t => ({ ...t, updates: cnt[t.id] || 0 }))
-    .filter(t => (!fs || t.status === fs) && matchFilter(t, fc) && (!q || [t.name, t.focal, t.target, cwgOf(t)].join(" ").toLowerCase().includes(q)));
+    .filter(t => (!fs || t.status === fs) && matchFilter(t, fc) && (!q || [t.name, t.focal, targetOf(t), cwgOf(t)].join(" ").toLowerCase().includes(q)));
   const val = (r, k) => k === "status" ? sIndex(r[k]) : k === "order" ? terrRank(r) : (r[k] ?? "");
   rows.sort((a, b) => {
     const x = val(a, dbSort.key), y = val(b, dbSort.key);
@@ -933,7 +937,7 @@ function renderDatabase() {
   if (!rows.length) { $("db-body").innerHTML = `<tr><td colspan="${ncol}" class="muted">${territories.length ? "No territories match these filters." : "No territories yet."}</td></tr>`; return; }
   const groups = cl.filter(c => rows.some(r => cwgOf(r) === c));
   const rowHtml = r => `<tr class="clickable" data-tid="${esc(r.id)}" tabindex="0">
-      <td><a class="tname" href="#territory-${esc(r.id)}">${esc(r.name)}</a></td><td>${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td><td class="nowrap">${esc(r.target || "")}</td>
+      <td><a class="tname" href="#territory-${esc(r.id)}">${esc(r.name)}</a></td><td>${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td><td class="nowrap">${esc(targetOf(r))}</td>
       <td>${badge(r.status)}</td><td class="nowrap">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td><td class="num">${r.updates}</td>
       ${upd ? `<td style="text-align:right"><button class="small primary" data-upd="${esc(r.id)}">Update</button></td>` : ""}</tr>`;
   let lastZone = null;
@@ -960,7 +964,7 @@ function renderDetail() {
       ${t.focalEmail ? `<div><div class="k">Focal email</div><div class="v">${esc(t.focalEmail)}</div></div>` : ""}
       ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
-      <div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>
+      ${t.status === "implementing" ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
@@ -1149,7 +1153,7 @@ async function buildPDF() {
   rows.forEach((t, r) => {
     if (r % 2) { doc.setFillColor(250, 250, 249); doc.rect(M, y, CW, rh, "F"); }
     const i = sIndex(t.status);
-    const cells = [t.name, cwgOf(t), t.focal || "-", t.target || "", i >= 0 ? SHORT[i] : "-", t.lastUpdated ? fmtDate(t.lastUpdated) : "-"];
+    const cells = [t.name, cwgOf(t), t.focal || "-", targetOf(t), i >= 0 ? SHORT[i] : "-", t.lastUpdated ? fmtDate(t.lastUpdated) : "-"];
     let xx = M;
     cells.forEach((v, ci) => {
       const w = cols[ci][1];
@@ -1211,7 +1215,7 @@ async function buildXLSX() {
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: t.target || "", status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
     r.getCell("last").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
