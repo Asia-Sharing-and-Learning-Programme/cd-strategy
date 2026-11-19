@@ -264,6 +264,14 @@
   .lead-row input, .lead-row select { width: 100%; padding: 5px 8px; font-size: 12.5px; }
   @media (max-width: 720px) { .lead-row { grid-template-columns: 1fr 1fr; } .lead-row .lead-cwg { grid-column: 1 / -1; } }
   .ct-table input { width: 100%; min-width: 170px; padding: 5px 8px; font-size: 12.5px; }
+  .scope-pick { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+  .scope-opt { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: 400; font-size: 13px; }
+  .scope-opt.indent { margin-left: 22px; }
+  .scope-opt input { width: auto; flex: none; margin: 0; }
+  .scope-opt .so-label { flex: 1; text-align: left; }
+  .scope-opt .so-n { font-size: 11.5px; color: var(--text-muted); }
+  .scope-opt .mini-lock { font-size: 15px; }
+  .scope-opt:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-1)); }
   .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .role-opt { display: flex; gap: 8px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; font-weight: 400; }
   .role-opt input { margin-top: 3px; width: auto; flex: none; }
@@ -298,7 +306,7 @@
     </div>
     <div class="hdr-actions">
       <div class="dl-group">
-        <button id="dl-pdf" class="small primary" title="One-page PDF of the current dashboard">⬇ One-page summary (PDF)</button>
+        <button id="dl-pdf" class="small primary" title="One-page PDF: all territories, one zone or one CWG">⬇ One-page summary (PDF)</button>
         <button id="dl-xlsx" class="small">⬇ Excel</button>
       </div>
       <div class="seg" role="group" aria-label="Theme">
@@ -520,6 +528,20 @@
     <button type="button" id="ddlg-cancel">Cancel</button>
     <button type="button" class="danger-fill" id="ddlg-ok">Delete entry</button>
   </div>
+</dialog>
+<dialog id="pdlg">
+  <form id="pdlg-form" method="dialog" novalidate>
+    <div class="dlg-body">
+      <h3>One-page summary (PDF)</h3>
+      <div class="muted" style="font-size:13px;margin-top:4px">Choose what the one-page summary should cover.</div>
+      <div class="scope-pick" id="pdlg-scopes" role="radiogroup" aria-label="Summary covers"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="pdlg-cancel">Cancel</button>
+      <span class="spacer"></span>
+      <button type="submit" class="primary" id="pdlg-go">Download PDF</button>
+    </div>
+  </form>
 </dialog>
 <dialog id="xdlg">
   <form id="xdlg-form" method="dialog" novalidate>
@@ -1753,10 +1775,33 @@ async function buildXLSX(downloader = "") {
   return new Blob([buf]);
 }
 
-$("dl-pdf").addEventListener("click", async e => {
-  const b = e.currentTarget, label = b.textContent; b.disabled = true; b.textContent = "Preparing PDF…";
-  try { const blob = await buildPDF(); await saveFile(`Community_Development_Strategies_${fileStamp()}.pdf`, blob, b, label); }
-  catch (err) { b.disabled = false; b.textContent = label; toast("Couldn't build the PDF — please try again"); }
+// PDF scope: all territories, one zone, or one CWG (defaults to the dashboard's current filter)
+$("dl-pdf").addEventListener("click", () => {
+  const cl = cwgList().filter(c => c !== UNASSIGNED);
+  const opt = (v, label, sub, indent) => {
+    const n = territories.filter(t => matchFilter(t, v)).length;
+    return `<label class="scope-opt${indent ? " indent" : ""}" ${cwgVars(v) ? `style="${cwgVars(v)}"` : ""}><input type="radio" name="p-scope" value="${esc(v)}" ${cwgFilter === v ? "checked" : ""}><span class="so-label">${label}</span><span class="so-n">${n} territor${n === 1 ? "y" : "ies"}</span></label>`;
+  };
+  $("pdlg-scopes").innerHTML = opt("", "<strong>All territories</strong>") + zoneList().filter(z => z !== "OTHER").map(z =>
+      opt("zone:" + z, `<strong style="color:var(--${z.toLowerCase()})">${esc(zoneLabel(z))}</strong>`) +
+      cl.filter(c => zoneOfCwg(c) === z).map(c => opt(c, cwgParts(c) ? `<span class="mini-lock"><span class="cl-zone">${cwgParts(c).zone}</span><span class="cl-num">${cwgParts(c).num}</span></span> <span class="muted" style="font-size:12px">Cluster Working Group</span>` : esc(c), "", true)).join("")).join("");
+  if (!document.querySelector('input[name="p-scope"]:checked')) document.querySelector('input[name="p-scope"]').checked = true;
+  $("pdlg").showModal();
+});
+$("pdlg-cancel").addEventListener("click", () => $("pdlg").close());
+$("pdlg-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const scope = (document.querySelector('input[name="p-scope"]:checked') || {}).value || "";
+  const b = $("pdlg-go"), label = b.textContent; b.disabled = true; b.textContent = "Preparing PDF…";
+  const prevCwg = cwgFilter, prevStatus = statusFilter;
+  cwgFilter = scope; statusFilter = null;
+  try {
+    const blob = await buildPDF();
+    const tag = "_" + (scope ? (scope.startsWith("zone:") ? scope.slice(5) : scope).replace(/[^A-Za-z0-9]+/g, "_") : "All");
+    cwgFilter = prevCwg; statusFilter = prevStatus;
+    $("pdlg").close(); b.disabled = false; b.textContent = label;
+    await saveFile(`Community_Development_Strategies${tag}_${fileStamp()}.pdf`, blob, $("dl-pdf"), $("dl-pdf").textContent);
+  } catch (err) { cwgFilter = prevCwg; statusFilter = prevStatus; b.disabled = false; b.textContent = label; toast("Couldn't build the PDF — please try again"); }
 });
 $("dl-xlsx").addEventListener("click", () => {
   let remembered = ""; try { remembered = sessionStorage.getItem("cd-email") || ""; } catch (e) {}
