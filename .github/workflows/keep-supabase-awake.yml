@@ -1,0 +1,18 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after about a week without activity.
+# This visits the database every 3 days so the dashboard always loads.
+on:
+  schedule:
+    - cron: "17 3 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping database
+        run: |
+          curl -fsS -X POST "https://emvtqqjiirgcgghcaeps.supabase.co/rest/v1/rpc/ping" \
+            -H "apikey: sb_publishable_cHpOvFlPWmirE_426PPIbg_XYo-klC9" \
+            -H "Content-Type: application/json" -d '{}'

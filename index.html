@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CD Strategy – Summary Dashboard | ASLP</title>
+<meta name="description" content="ASLP Community Development Strategy progress across SPEA and South Asia territories.">
+<link rel="icon" href="favicon.png">
+<script src="vendor/supabase.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f4f2;
+    --surface-1: #fcfcfb;
+    --border: #e2e1dc;
+    --grid: #ecebe7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7974;
+    --accent: #2a78d6;
+    --accent-ink: #ffffff;
+    /* ASLP logo colours: navy → Listen blue → Learn yellow → rust → ASLP blue → Lead orange */
+    --s0: #24215f; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #005fc0; --s5: #e04c1e;
+    --danger: #c03a39;
+    --ok-bg: #e7f3e7; --ok-ink: #145c14;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #121211; --surface-1: #1a1a19; --border: #2f2f2c; --grid: #262624;
+      --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+      --accent: #3987e5;
+      --s0: #4a46a8; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #2f7fd6; --s5: #e04c1e;
+      --ok-bg: #16301a; --ok-ink: #8fd88f;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211; --surface-1: #1a1a19; --border: #2f2f2c; --grid: #262624;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --accent: #3987e5;
+    --s0: #4a46a8; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #2f7fd6; --s5: #e04c1e;
+    --ok-bg: #16301a; --ok-ink: #8fd88f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--surface-0); color: var(--text-primary); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 48px; }
+  .logo-bar { margin-bottom: 14px; }
+  .logo-bar img { display: block; width: 100%; max-width: 560px; height: auto; }
+  .logo-dark { display: none !important; }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .logo-light { display: none !important; }
+    :root:where(:not([data-theme="light"])) .logo-dark { display: block !important; }
+  }
+  :root[data-theme="dark"] .logo-light { display: none !important; }
+  :root[data-theme="dark"] .logo-dark { display: block !important; }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  .sub { color: var(--text-secondary); margin-top: 4px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .kpi .label { color: var(--text-secondary); font-size: 12px; }
+  .kpi .value { font-size: 26px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .hint { color: var(--text-muted); font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: 320px 1fr; gap: 16px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  th { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.sumrow { cursor: pointer; }
+  tr.sumrow:hover td { background: var(--grid); }
+  tr.sumrow.active td { background: var(--grid); font-weight: 600; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px;
+           border: 1px solid var(--border); font-size: 12px; white-space: nowrap; color: var(--text-primary); }
+  .muted { color: var(--text-muted); }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart text { fill: var(--text-secondary); font-size: 11px; }
+  .chart .val { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  .bar { cursor: pointer; }
+  .bar .mark { transition: opacity .15s; }
+  .chart.filtered .bar:not(.on) .mark { opacity: .35; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
+         border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12);
+         opacity: 0; transition: opacity .1s; max-width: 260px; z-index: 5; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .toolbar .spacer { flex: 1; }
+  input, select, textarea, button { font: inherit; color: inherit; }
+  input[type=search], select, input[type=date], input[type=text], textarea {
+    background: var(--surface-0); border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px; }
+  textarea { width: 100%; min-height: 64px; resize: vertical; }
+  button { border: 1px solid var(--border); background: var(--surface-1); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--text-muted); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.small { padding: 3px 10px; font-size: 12px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; background: var(--grid); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
+  .chip button { border: 0; background: transparent; padding: 0 6px; }
+  .tblwrap { overflow-x: auto; }
+  .log-item { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--grid); }
+  .log-item:last-child { border-bottom: 0; }
+  .log-date { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: 13px; }
+  .log-main .t { font-weight: 600; }
+  .log-main .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  .log-main .note { margin-top: 4px; color: var(--text-secondary); white-space: pre-wrap; }
+  .arrow { color: var(--text-muted); margin: 0 4px; }
+  .log-item { position: relative; }
+  .log-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .log-actions button { padding: 2px 9px; font-size: 12px; }
+  button.danger { color: var(--danger); }
+  button.danger-fill { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .edited { font-style: italic; }
+  .banner { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); margin-bottom: 14px; display: none; }
+  .banner.show { display: block; }
+  dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text-primary);
+           padding: 0; width: min(480px, 94vw); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  .dlg-body { padding: 20px; }
+  .dlg-body h3 { margin: 0 0 4px; font-size: 17px; }
+  .field { margin-top: 14px; display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+  .field select, .field input { width: 100%; }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--grid); }
+  .err { color: var(--danger); font-size: 12px; margin-top: 8px; min-height: 1em; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ok-bg); color: var(--ok-ink);
+           border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  body.summary-mode .edit-only { display: none !important; }
+  body:not(.summary-mode) .summary-only { display: none !important; }
+  .summary-note { font-size: 12px; color: var(--text-muted); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 0 0 16px; }
+  .tabs a { padding: 8px 14px; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; }
+  .tabs a.on { color: var(--text-primary); border-bottom-color: var(--accent); }
+  .db-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .db-toolbar .spacer { flex: 1; }
+  .db-count { color: var(--text-muted); font-size: 12px; }
+  .db-toolbar select { max-width: 260px; }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--text-primary); }
+  th.sortable .dir { color: var(--accent); margin-left: 4px; }
+  td.note-cell { max-width: 320px; white-space: pre-wrap; color: var(--text-secondary); }
+  td.nowrap { white-space: nowrap; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover td { background: var(--grid); }
+  .tname { color: var(--text-primary); text-decoration: none; font-weight: 700; }
+  tr.clickable:hover .tname { color: var(--accent); text-decoration: underline; }
+  .back { display: inline-block; margin-bottom: 12px; color: var(--accent); text-decoration: none; font-weight: 600; }
+  .td-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; }
+  .td-head h2 { font-size: 20px; margin: 0 0 6px; }
+  .td-facts { display: grid; grid-template-columns: repeat(5, minmax(110px, auto)); gap: 6px 28px; margin-top: 12px; }
+  .td-facts .k { font-size: 12px; color: var(--text-secondary); }
+  .td-facts .v { font-weight: 600; margin-top: 2px; }
+  @media (max-width: 700px) { .td-facts { grid-template-columns: 1fr 1fr; } }
+  .cwg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .cwg-bar label { font-weight: 600; font-size: 13px; }
+  .cwg-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cwg-pills button { border-radius: 999px; padding: 4px 12px; font-size: 12px; }
+  .cwg-pills button.on { background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary); }
+  .stack { display: flex; height: 12px; border-radius: 4px; overflow: hidden; min-width: 120px; gap: 2px; background: var(--grid); }
+  .stack span { display: block; height: 100%; }
+  tr.cwg-row { cursor: pointer; }
+  tr.cwg-row:hover td, tr.cwg-row.active td { background: var(--grid); }
+  tr.cwg-row.active td:first-child { font-weight: 700; }
+  td.cnt { text-align: center; font-variant-numeric: tabular-nums; }
+  td.cnt.zero { color: var(--text-muted); }
+  th.cnt { text-align: center; font-size: 11px; }
+  .zone-sep { width: 1px; background: var(--border); margin: 0 4px; align-self: stretch; }
+  tr.zone-row td { background: var(--surface-0); }
+  .indent { padding-left: 14px; display: inline-block; }
+  tr.zone-group td { background: var(--grid); font-weight: 800; font-size: 13px; color: var(--text-primary); padding-top: 12px; }
+  tr.group-row td { background: var(--surface-0); font-weight: 700; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; padding-top: 12px; }
+  .steps { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .steps span { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
+  .steps span.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .steps span.done { color: var(--text-primary); border-color: var(--text-muted); }
+  .hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+  .lock { padding: 12px; border-radius: 8px; background: var(--surface-0); border: 1px solid var(--border); font-size: 13px; margin-top: 12px; }
+  .ok-note { padding: 8px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok-ink); font-size: 12px; margin-top: 12px; }
+  .dlg-actions .spacer { flex: 1; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .chg { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .chg b { color: var(--text-primary); font-weight: 600; }
+  .dbadge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--grid); font-weight: 600; }
+  .access-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+  .access-grid textarea { min-height: 70px; }
+  .site-foot { margin-top: 28px; font-size: 12px; color: var(--text-muted); text-align: center; }
+  .hdr-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .dl-group { display: flex; gap: 6px; }
+  .dl-group[hidden] { display: none; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 12px; }
+  .seg button.on { background: var(--grid); font-weight: 600; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-bar"><img class="logo-light" src="aslp-logo-light.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"><img class="logo-dark" src="aslp-logo-dark.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"></div>
+  <header>
+    <div>
+      <h1>CD Strategy – Summary Dashboard</h1>
+      <div class="sub">Territory progress on Community Development strategies across SPEA and South Asia. Updates are recorded in the Database tab and appear here for everyone.</div>
+    </div>
+    <div class="hdr-actions">
+      <div class="dl-group">
+        <button id="dl-pdf" class="small primary" title="One-page PDF of the current dashboard">⬇ One-page summary (PDF)</button>
+        <button id="dl-xlsx" class="small">⬇ Excel</button>
+      </div>
+      <button id="auth-btn" class="small" title="For programme coordinators">Coordinator sign-in</button>
+      <div class="seg" role="group" aria-label="Theme">
+        <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Views">
+    <a href="#" id="tab-dashboard" class="on">Dashboard</a>
+    <a href="#database" id="tab-database">Database</a>
+  </nav>
+  <div id="banner" class="banner" role="status"></div>
+
+  <div id="view-dashboard">
+  <div class="cwg-bar"><label>Zone / CWG</label><div class="cwg-pills" id="cwg-pills" role="group" aria-label="Filter by CWG"></div></div>
+  <section class="kpis">
+    <div class="card kpi"><div class="label">Territories</div><div class="value" id="k-total">–</div><div class="hint">being tracked</div></div>
+    <div class="card kpi"><div class="label">Approved or implementing</div><div class="value" id="k-approved">–</div><div class="hint" id="k-approved-pct">&nbsp;</div></div>
+    <div class="card kpi"><div class="label">Still in drafting stages</div><div class="value" id="k-progress">–</div><div class="hint">not started → submitted</div></div>
+    <div class="card kpi"><div class="label">Most recent update</div><div class="value" id="k-last" style="font-size:20px">–</div><div class="hint" id="k-last-who">&nbsp;</div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>Status count</h2>
+      <table aria-label="Territories per status">
+        <thead><tr><th>Status</th><th class="num">Count</th></tr></thead>
+        <tbody id="sum-body"></tbody>
+        <tfoot><tr><td><strong>Total</strong></td><td class="num"><strong id="sum-total">0</strong></td></tr></tfoot>
+      </table>
+      <div class="muted" style="font-size:12px;margin-top:10px">Click a status (here or on the chart) to filter the territory list.</div>
+    </div>
+    <div class="card">
+      <h2 id="chart-title">Territories by status</h2>
+      <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px">
+    <h2>Status by CWG</h2>
+    <div class="tblwrap"><table aria-label="Territories per status in each CWG"><thead id="cwgm-head"></thead><tbody id="cwgm-body"></tbody><tfoot id="cwgm-foot"></tfoot></table></div>
+    <div class="muted" style="font-size:12px;margin-top:10px">Click a zone or CWG to see its dashboard.</div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px">
+    <div class="toolbar">
+      <h2 style="margin:0">Territories</h2>
+      <span id="filter-chip"></span>
+      <span class="spacer"></span>
+      <input type="search" id="search" placeholder="Search territory or focal person" aria-label="Search territories">
+    </div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Territory</th><th>Zone · CWG</th><th>Focal person</th><th>Target</th><th>Status</th><th>Last updated</th></tr></thead>
+        <tbody id="terr-body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:10px">Click a territory to see its update history.</div>
+  </section>
+  </div>
+
+  <div id="view-database" hidden>
+    <div id="db-list">
+      <section class="card">
+        <div class="db-toolbar">
+          <h2 style="margin:0">Territories</h2>
+          <input type="search" id="db-search" placeholder="Search territory or focal person" aria-label="Search territories">
+          <select id="db-cwg" aria-label="Filter by CWG"><option value="">All CWGs</option></select>
+          <select id="db-status" aria-label="Filter by status"><option value="">All statuses</option></select>
+          <span class="spacer"></span>
+          <span class="db-count" id="db-count"></span>
+          <button class="small" id="db-clear">Clear filters</button>
+        </div>
+        <div class="tblwrap"><table><thead id="db-head"></thead><tbody id="db-body"></tbody></table></div>
+        <div class="muted" style="font-size:12px;margin-top:10px">Click a territory to see its update history. Click a column heading to sort.</div>
+      </section>
+      <section class="card" id="access-card" style="margin-top:16px" hidden>
+        <h2 style="margin-bottom:4px">Who can update CD Strategy details</h2>
+        <div class="muted" style="font-size:12px">Anyone can record a status update (their email is logged). Changing a territory's CD Strategy details needs one of these emails: the territory's focal person email (set in its details), its CWG lead, or a programme coordinator. Only signed-in coordinators see this panel. You can't remove your own email from the coordinators.</div>
+        <div class="access-grid">
+          <div class="field"><label for="acc-coord">Programme coordinator email(s)</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
+          <div id="acc-leads" style="display:contents"></div>
+        </div>
+        <div style="margin-top:12px"><button class="primary small" id="acc-save">Save approved emails</button></div>
+      </section>
+    </div>
+    <div id="db-detail" hidden>
+      <a href="#database" class="back">← All territories</a>
+      <section class="card" style="margin-bottom:16px" id="td-card"></section>
+      <section class="card">
+        <div class="toolbar"><h2 style="margin:0">Update history</h2><span class="spacer"></span><span class="db-count" id="td-count"></span></div>
+        <div id="log-list"><div class="muted">Loading…</div></div>
+      </section>
+    </div>
+  </div>
+  <footer class="site-foot">Asia-Pacific Sharing &amp; Learning Programme (ASLP) · The Salvation Army · <span id="foot-sync"></span></footer>
+</div>
+
+<dialog id="dlg">
+  <form id="dlg-form" method="dialog" novalidate>
+    <div class="dlg-body">
+      <div class="steps"><span data-st="0">1 · Email</span><span data-st="1">2 · Status update</span><span data-st="3">3 · CD Strategy details</span></div>
+      <h3 id="dlg-title">Update territory</h3>
+      <div class="muted" id="dlg-current"></div>
+      <div id="step-0">
+        <div class="field"><label for="f-email">Your email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
+        <div class="hint">Your email is recorded with every update. Only the territorial focal person, the CWG lead and programme coordinators can change the CD Strategy details.</div>
+      </div>
+      <div id="step-1" hidden>
+        <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select></div>
+        <div class="field"><label for="f-date">Date of update</label><input type="date" id="f-date"></div>
+        <div class="field"><label for="f-note">Note (optional)</label><textarea id="f-note" maxlength="1000" placeholder="e.g. Draft shared with THQ for comment"></textarea></div>
+      </div>
+      <div id="step-2" hidden>
+        <div id="status-saved" class="ok-note" hidden></div>
+        <div id="details-locked" class="lock" hidden></div>
+        <div id="details-form">
+          <div class="field"><label for="f-focal">Focal person</label><input type="text" id="f-focal" maxlength="120"></div>
+          <div class="two">
+            <div class="field"><label for="f-femail">Focal person email</label><input type="email" id="f-femail" maxlength="200"></div>
+            <div class="field"><label for="f-fphone">Focal person phone</label><input type="text" id="f-fphone" maxlength="40"></div>
+          </div>
+          <div class="two">
+            <div class="field"><label for="f-period">Strategy period</label><input type="text" id="f-period" maxlength="40" placeholder="e.g. 2026–2030"></div>
+            <div class="field"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
+          </div>
+          <div class="field"><label for="f-doc">Document link</label><input type="url" id="f-doc" maxlength="1000" placeholder="https://… (SharePoint, OneDrive, Google Drive)"></div>
+          <div class="field"><label for="f-cwg">CWG</label><input type="text" id="f-cwg" maxlength="60" list="cwg-options"><datalist id="cwg-options"></datalist></div>
+        </div>
+      </div>
+      <div class="err" id="dlg-err"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="dlg-cancel">Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" id="dlg-skip" hidden>Skip</button>
+      <button type="submit" class="primary" id="dlg-save">Continue</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="ldlg">
+  <form id="ldlg-form" method="dialog">
+    <div class="dlg-body">
+      <h3>Edit log entry</h3>
+      <div class="muted" id="ldlg-sub"></div>
+      <div class="field"><label for="l-from">Previous status</label><select id="l-from"></select></div>
+      <div class="field"><label for="l-status">New status</label><select id="l-status" required></select></div>
+      <div class="field"><label for="l-date">Date of update</label><input type="date" id="l-date" required></div>
+      <div class="field"><label for="l-note">Note</label><textarea id="l-note" maxlength="1000"></textarea></div>
+      <div class="muted" style="font-size:12px;margin-top:10px">If this is the territory's most recent entry, its current status and last-updated date will change to match.</div>
+      <div class="err" id="ldlg-err"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="ldlg-cancel">Cancel</button>
+      <button type="submit" class="primary" id="ldlg-save">Save changes</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="ddlg">
+  <div class="dlg-body">
+    <h3>Delete this log entry?</h3>
+    <div id="ddlg-desc" style="margin-top:8px"></div>
+    <div class="muted" style="font-size:12px;margin-top:10px" id="ddlg-effect"></div>
+    <div class="err" id="ddlg-err"></div>
+  </div>
+  <div class="dlg-actions">
+    <button type="button" id="ddlg-cancel">Cancel</button>
+    <button type="button" class="danger-fill" id="ddlg-ok">Delete entry</button>
+  </div>
+</dialog>
+<dialog id="adlg">
+  <form id="adlg-form" method="dialog" novalidate>
+    <div class="dlg-body">
+      <h3 id="adlg-title">Coordinator sign-in</h3>
+      <div id="adlg-in">
+        <div class="muted" style="font-size:13px;margin-top:4px">Programme coordinators sign in to manage the approved emails and to edit or delete history entries. Territories don't need to sign in to record updates.</div>
+        <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
+      </div>
+      <div id="adlg-sent" class="ok-note" hidden></div>
+      <div id="adlg-out" hidden></div>
+      <div class="err" id="adlg-err"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="adlg-cancel">Close</button>
+      <span class="spacer"></span>
+      <button type="submit" class="primary" id="adlg-go">Email me a sign-in link</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUSES = [
+  { key: "not_started",  label: "Not Yet Started" },
+  { key: "workshop",     label: "CD Strategy Consultation workshop being planned" },
+  { key: "drafting",     label: "CD Strategy being Drafted" },
+  { key: "submitted",    label: "Draft Completed, Submitted for Approval" },
+  { key: "approved",     label: "Approved by Territorial Board" },
+  { key: "implementing", label: "Approved CD Strategy being Implemented" },
+];
+const SHORT = ["Not yet started", "Workshop planned", "Being drafted", "Submitted for approval", "Approved by board", "Being implemented"];
+const sIndex = k => STATUSES.findIndex(s => s.key === k);
+const sColor = i => `var(--s${i})`;
+
+const SUPABASE_URL = "https://emvtqqjiirgcgghcaeps.supabase.co";
+const SUPABASE_KEY = "sb_publishable_cHpOvFlPWmirE_426PPIbg_XYo-klC9";
+let db = null, canWrite = true, viewer = { email: "", is_coordinator: false };
+let territories = [];   // [{id, ...data}]
+let logs = [];          // [{id, ...data}]
+let statusFilter = null;
+let names = {};
+
+const $ = id => document.getElementById(id);
+let publicMode = false, isEditor = false, loadedOnce = false;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const fmtDate = d => {
+  if (!d) return "";
+  const [y, m, day] = d.split("-").map(Number);
+  if (!y) return d;
+  return new Date(y, m - 1, day).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+};
+const todayISO = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+
+function banner(msg) { const b = $("banner"); b.textContent = msg || ""; b.classList.toggle("show", !!msg); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2200); }
+
+/* ---------- view mode (#summary = read-only one-pager) ---------- */
+let summaryMode = false;
+let currentView = "dashboard", detailId = null;
+function applyMode() {
+  const h = location.hash;
+  detailId = h.startsWith("#territory-") ? h.slice("#territory-".length) : null;
+  currentView = (h === "#database" || detailId) ? "database" : "dashboard";
+  summaryMode = location.hash === "#summary";
+  document.body.classList.toggle("summary-mode", summaryMode);
+  $("view-dashboard").hidden = currentView !== "dashboard";
+  $("view-database").hidden = currentView !== "database";
+  $("tab-dashboard").classList.toggle("on", currentView === "dashboard");
+  $("tab-database").classList.toggle("on", currentView === "database");
+  if (summaryMode) { statusFilter = null; }
+  try { renderAll(); } catch (e) {}
+}
+window.addEventListener("hashchange", applyMode);
+$("tab-dashboard").addEventListener("click", e => { e.preventDefault(); if (location.hash && location.hash !== "#summary") location.hash = ""; applyMode(); });
+function openTerritory(id) { location.hash = "#territory-" + id; }
+
+/* ---------- theme ---------- */
+function setTheme(mode) {
+  const root = document.documentElement;
+  if (mode === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", mode);
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.classList.toggle("on", b.dataset.themeSet === mode));
+  try { localStorage.setItem("cd-theme", mode); } catch (e) {}
+}
+document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeSet)));
+try { const m = localStorage.getItem("cd-theme"); if (m) setTheme(m); } catch (e) {}
+
+/* ---------- Zones, CWGs + derived counts ---------- */
+const UNASSIGNED = "Unassigned";
+// Official ASLP CWG groupings (used when a territory has no CWG saved)
+const DEFAULT_CWG = {
+  "smmt": "SPEA 1", "hkm": "SPEA 1", "taiwan": "SPEA 1", "japan": "SPEA 1", "korea": "SPEA 1",
+  "philippines": "SPEA 2", "indonesia": "SPEA 2", "png": "SPEA 2", "australia": "SPEA 2", "new-zealand": "SPEA 2",
+  "india-central": "SASIA 1", "india-eastern": "SASIA 1", "india-northern": "SASIA 1", "india-south-eastern": "SASIA 1", "india-south-western": "SASIA 1", "india-western": "SASIA 1",
+  "middle-east": "SASIA 2", "pakistan": "SASIA 2", "bangladesh": "SASIA 2", "sri-lanka": "SASIA 2",
+};
+const DEFAULT_RANK = Object.keys(DEFAULT_CWG);
+const ZONES = [
+  { key: "SPEA", label: "South Pacific & East Asia (SPEA)", test: c => /^spea/i.test(c) },
+  { key: "SASIA", label: "South Asia (SASIA)", test: c => /^(sasia|south asia)/i.test(c) },
+];
+const cwgOf = t => (t.cwg || "").trim() || DEFAULT_CWG[t.id] || UNASSIGNED;
+const zoneOfCwg = c => (ZONES.find(z => z.test(c)) || { key: "OTHER" }).key;
+const zoneOf = t => zoneOfCwg(cwgOf(t));
+const zoneLabel = k => (ZONES.find(z => z.key === k) || { label: "Other" }).label;
+const terrRank = t => { const i = DEFAULT_RANK.indexOf(t.id); return i >= 0 ? i : 100 + (t.order ?? 999); };
+const zoneRank = k => { const i = ZONES.findIndex(z => z.key === k); return i >= 0 ? i : 99; };
+function cwgList() {
+  return [...new Set(territories.map(cwgOf))].sort((a, b) =>
+    zoneRank(zoneOfCwg(a)) - zoneRank(zoneOfCwg(b)) || (a === UNASSIGNED) - (b === UNASSIGNED) || a.localeCompare(b, undefined, { numeric: true }));
+}
+function zoneList() { return [...new Set(cwgList().map(zoneOfCwg))]; }
+let cwgFilter = "";   // "" | "zone:SPEA" | "SPEA 1"
+const matchFilter = (t, f) => !f || (f.startsWith("zone:") ? zoneOf(t) === f.slice(5) : cwgOf(t) === f);
+const viewTerr = () => territories.filter(t => matchFilter(t, cwgFilter));
+const filterLabel = f => !f ? "" : f.startsWith("zone:") ? zoneLabel(f.slice(5)) : f;
+function setCwg(v) { cwgFilter = cwgFilter === v ? "" : v; statusFilter = null; renderAll(); }
+function counts(list = viewTerr()) {
+  const c = STATUSES.map(() => 0);
+  list.forEach(t => { const i = sIndex(t.status); if (i >= 0) c[i]++; });
+  return c;
+}
+function renderCwgBar() {
+  const cl = cwgList(), zl = zoneList();
+  if (cwgFilter && !territories.some(t => matchFilter(t, cwgFilter))) cwgFilter = "";
+  const btn = (v, label) => `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}">${esc(label)}</button>`;
+  const el = $("cwg-pills");
+  el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span>` + (z !== "OTHER" ? btn("zone:" + z, `All ${z}`) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("")).join("");
+  el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { cwgFilter = b.dataset.cwg; statusFilter = null; renderAll(); }));
+  $("chart-title").textContent = cwgFilter ? `Territories by status — ${filterLabel(cwgFilter)}` : "Territories by status";
+  $("cwg-options").innerHTML = [...new Set([...Object.values(DEFAULT_CWG), ...cl])].filter(c => c !== UNASSIGNED).map(c => `<option value="${esc(c)}">`).join("");
+}
+function renderCwgMatrix() {
+  const cl = cwgList(), zl = zoneList();
+  $("cwgm-head").innerHTML = `<tr><th>Zone / CWG</th>${STATUSES.map((st, i) => `<th class="cnt" title="${esc(st.label)}"><span class="sw" style="background:${sColor(i)};margin:0 4px 0 0"></span>${esc(SHORT[i])}</th>`).join("")}<th class="num">Total</th><th>Progress</th></tr>`;
+  const row = (val, label, ts, cls) => {
+    const cc = counts(ts), n = ts.length;
+    return `<tr class="cwg-row ${cls} ${cwgFilter === val ? "active" : ""}" data-cwg="${esc(val)}" tabindex="0">
+      <td>${label}</td>${cc.map(v => `<td class="cnt ${v ? "" : "zero"}">${v}</td>`).join("")}<td class="num"><strong>${n}</strong></td>
+      <td><div class="stack" title="${esc(STATUSES.map((st, i) => `${SHORT[i]}: ${cc[i]}`).join(" · "))}">${cc.map((v, i) => v ? `<span style="width:${v / n * 100}%;background:${sColor(i)}"></span>` : "").join("")}</div></td></tr>`;
+  };
+  $("cwgm-body").innerHTML = zl.map(z =>
+    (z !== "OTHER" ? row("zone:" + z, `<strong>${esc(zoneLabel(z))}</strong>`, territories.filter(t => zoneOf(t) === z), "zone-row") : "") +
+    cl.filter(c => zoneOfCwg(c) === z).map(c => row(c, `<span class="indent">${esc(c)}</span>`, territories.filter(t => cwgOf(t) === c), "")).join("")
+  ).join("");
+  const all = counts(territories);
+  $("cwgm-foot").innerHTML = `<tr><td><strong>All zones</strong></td>${all.map(v => `<td class="cnt"><strong>${v}</strong></td>`).join("")}<td class="num"><strong>${territories.length}</strong></td><td></td></tr>`;
+  $("cwgm-body").querySelectorAll("tr[data-cwg]").forEach(tr => {
+    const go = () => setCwg(tr.dataset.cwg);
+    tr.addEventListener("click", go);
+    tr.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  });
+}
+
+/* ---------- render ---------- */
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); } catch (e) {} }
+
+function latestInfo() {
+  const ids = new Set(viewTerr().map(t => t.id));
+  const l = [...logs].filter(x => ids.has(x.territoryId)).sort(logSort)[0];
+  if (l) return { date: l.date, name: l.territoryName };
+  let best = null;
+  viewTerr().forEach(t => { if (t.lastUpdated && (!best || t.lastUpdated > best.date)) best = { date: t.lastUpdated, name: t.name }; });
+  return best;
+}
+function renderKpis() {
+  const c = counts(), total = viewTerr().length;
+  $("k-total").textContent = total;
+  const done = c[4] + c[5];
+  $("k-approved").textContent = done;
+  $("k-approved-pct").textContent = total ? `${Math.round(done / total * 100)}% of territories` : " ";
+  $("k-progress").textContent = c[0] + c[1] + c[2] + c[3];
+  const latest = latestInfo();
+  if (latest) {
+    $("k-last").textContent = fmtDate(latest.date);
+    $("k-last-who").textContent = latest.name || "";
+  } else { $("k-last").textContent = "–"; $("k-last-who").textContent = "no updates logged yet"; }
+}
+
+function renderSummary() {
+  const c = counts();
+  $("sum-body").innerHTML = STATUSES.map((s, i) => `
+    <tr class="sumrow ${statusFilter === s.key ? "active" : ""}" data-k="${s.key}" tabindex="0">
+      <td><span class="sw" style="background:${sColor(i)}"></span>${esc(s.label)}</td><td class="num">${c[i]}</td></tr>`).join("");
+  $("sum-total").textContent = viewTerr().length;
+  $("sum-body").querySelectorAll("tr").forEach(tr => {
+    const go = () => toggleFilter(tr.dataset.k);
+    tr.addEventListener("click", go);
+    tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
+}
+
+function renderChart() {
+  const c = counts();
+  const W = 640, H = 300, m = { t: 22, r: 8, b: 58, l: 30 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = Math.max(4, ...c);
+  const step = max <= 10 ? 1 : max <= 20 ? 2 : 5;
+  const top = Math.ceil(max / step) * step;
+  const y = v => m.t + ih - (v / top) * ih;
+  const bw = iw / STATUSES.length, barW = Math.min(64, bw - 18);
+  let g = "";
+  for (let v = 0; v <= top; v += step) {
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/>`;
+    g += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  let bars = "";
+  STATUSES.forEach((s, i) => {
+    const x = m.l + i * bw + (bw - barW) / 2, v = c[i], h = (v / top) * ih, yy = m.t + ih - h;
+    const r = Math.min(4, h);
+    const path = h > 0
+      ? `M${x},${m.t + ih} L${x},${yy + r} Q${x},${yy} ${x + r},${yy} L${x + barW - r},${yy} Q${x + barW},${yy} ${x + barW},${yy + r} L${x + barW},${m.t + ih} Z`
+      : "";
+    const words = SHORT[i].split(" ");
+    const mid = Math.ceil(words.length / 2);
+    const l1 = words.slice(0, mid).join(" "), l2 = words.slice(mid).join(" ");
+    bars += `<g class="bar ${statusFilter === s.key ? "on" : ""}" data-i="${i}" data-k="${s.key}" tabindex="0" role="button" aria-label="${esc(s.label)}: ${v}">
+      <rect x="${m.l + i * bw}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>
+      ${path ? `<path class="mark" d="${path}" fill="${sColor(i)}"/>` : ""}
+      <text class="val" x="${x + barW / 2}" y="${yy - 6}" text-anchor="middle">${v}</text>
+      <text x="${x + barW / 2}" y="${m.t + ih + 16}" text-anchor="middle">${esc(l1)}</text>
+      <text x="${x + barW / 2}" y="${m.t + ih + 30}" text-anchor="middle">${esc(l2)}</text>
+    </g>`;
+  });
+  const el = $("chart");
+  el.classList.toggle("filtered", !!statusFilter);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bar chart of territories per status">${g}
+    <line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}" stroke="var(--text-muted)" stroke-width="1"/>${bars}</svg><div class="tip" id="tip"></div>`;
+  const tip = $("tip");
+  el.querySelectorAll(".bar").forEach(b => {
+    const i = +b.dataset.i;
+    b.addEventListener("mousemove", e => {
+      const list = viewTerr().filter(t => t.status === STATUSES[i].key).map(t => t.name).sort();
+      tip.innerHTML = `<div style="font-weight:600;margin-bottom:4px"><span class="sw" style="background:${sColor(i)}"></span>${esc(STATUSES[i].label)}</div>
+        <div><strong>${c[i]}</strong> territor${c[i] === 1 ? "y" : "ies"}</div>
+        ${list.length ? `<div class="muted" style="margin-top:4px">${list.map(esc).join("<br>")}</div>` : ""}`;
+      const r = el.getBoundingClientRect();
+      let left = e.clientX - r.left + 14, topPx = e.clientY - r.top + 14;
+      if (left + 260 > r.width) left = e.clientX - r.left - 270;
+      tip.style.left = Math.max(0, left) + "px"; tip.style.top = topPx + "px"; tip.style.opacity = 1;
+    });
+    b.addEventListener("mouseleave", () => { tip.style.opacity = 0; });
+    b.addEventListener("click", () => toggleFilter(b.dataset.k));
+    b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleFilter(b.dataset.k); } });
+  });
+}
+
+function toggleFilter(k) { statusFilter = statusFilter === k ? null : k; renderSummary(); renderChart(); renderTable(); }
+
+function renderTable() {
+  const q = $("search").value.trim().toLowerCase();
+  const chip = $("filter-chip");
+  if (statusFilter) {
+    const i = sIndex(statusFilter);
+    chip.innerHTML = `<span class="chip"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(SHORT[i])}<button aria-label="Clear filter">×</button></span>`;
+    chip.querySelector("button").onclick = () => toggleFilter(statusFilter);
+  } else chip.innerHTML = "";
+  const rows = viewTerr()
+    .filter(t => !statusFilter || t.status === statusFilter)
+    .filter(t => !q || (t.name || "").toLowerCase().includes(q) || (t.focal || "").toLowerCase().includes(q))
+    .sort((a, b) => terrRank(a) - terrRank(b) || (a.name || "").localeCompare(b.name || ""));
+  const body = $("terr-body");
+  if (!territories.length) { body.innerHTML = `<tr><td colspan="6" class="muted">No territories yet.</td></tr>`; return; }
+  if (!rows.length) { body.innerHTML = `<tr><td colspan="6" class="muted">No territories match.</td></tr>`; return; }
+  body.innerHTML = rows.map(t => {
+    const i = sIndex(t.status);
+    return `<tr class="clickable" data-tid="${esc(t.id)}" tabindex="0">
+      <td><a class="tname" href="#territory-${esc(t.id)}">${esc(t.name)}</a></td>
+      <td class="nowrap">${esc(cwgOf(t))}</td>
+      <td>${t.focal ? esc(t.focal) : '<span class="muted">—</span>'}</td>
+      <td>${esc(t.target || "")}</td>
+      <td>${i >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(STATUSES[i].label)}</span>` : '<span class="muted">—</span>'}</td>
+      <td>${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join("");
+  wireRows(body);
+}
+
+function logSort(a, b) { return (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0); }
+
+function wireRows(body) {
+  body.querySelectorAll("tr[data-tid]").forEach(tr => {
+    tr.addEventListener("click", e => { if (e.target.closest("button, a")) return; openTerritory(tr.dataset.tid); });
+    tr.addEventListener("keydown", e => { if (e.key === "Enter" && !e.target.closest("button, a")) openTerritory(tr.dataset.tid); });
+  });
+}
+function renderLog() {
+  if (!detailId) return;
+  const list = logs.filter(l => l.territoryId === detailId).sort(logSort);
+  const el = $("log-list");
+  $("td-count").textContent = list.length ? `${list.length} update${list.length === 1 ? "" : "s"}` : "";
+  if (!list.length) { el.innerHTML = `<div class="muted">No updates logged for this territory yet.${canWrite && db && !summaryMode ? " Use <strong>Update</strong> above to record a status change." : ""}</div>`; return; }
+  el.innerHTML = list.map(l => {
+    const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus);
+    const from = fi >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(fi)};margin:0"></span>${esc(SHORT[fi])}</span>` : "";
+    const to = ti >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(ti)};margin:0"></span>${esc(SHORT[ti])}</span>` : "";
+    const who = l.email || "";
+    const isDet = l.type === "details";
+    const recorded = l.createdAt ? new Date(l.createdAt).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return `<div class="log-item">
+      <div class="log-date">${esc(fmtDate(l.date))}</div>
+      <div class="log-main">
+        ${isDet ? `<div><span class="dbadge">CD Strategy details updated</span></div>${(l.changes || []).map(c => `<div class="chg"><b>${esc(c.label)}:</b> ${c.from ? esc(c.from) : "—"} <span class="arrow">→</span> ${c.to ? esc(c.to) : "—"}</div>`).join("")}`
+          : `<div>${from && fi !== ti ? `${from}<span class="arrow">→</span>` : ""}${to}${fi === ti ? ' <span class="muted" style="font-size:12px">(status unchanged)</span>' : ""}</div>`}
+        ${l.note ? `<div class="note">${esc(l.note)}</div>` : ""}
+        <div class="meta">${who ? `Logged by ${esc(who)} · ` : ""}${recorded ? `recorded ${esc(recorded)}` : ""}${l.editedAt ? ` · <span class="edited">edited ${esc(new Date(l.editedAt).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }))}${l.editedBy && names[l.editedBy] ? " by " + esc(names[l.editedBy]) : ""}</span>` : ""}</div>
+        ${isEditor && !summaryMode ? `<div class="log-actions">${isDet ? "" : `<button data-edit="${esc(l.id)}">Edit</button>`}<button class="danger" data-del="${esc(l.id)}">Delete</button></div>` : ""}
+      </div></div>`;
+  }).join("");
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openLogEdit(b.dataset.edit)));
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => openLogDelete(b.dataset.del)));
+}
+$("search").addEventListener("input", renderTable);
+
+
+/* ---------- names ---------- */
+async function resolveNames() {}
+
+/* ---------- update dialog: email → status → details ---------- */
+const DETAIL_FIELDS = [
+  ["focal", "Focal person", "f-focal"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"],
+  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"],
+];
+const PRIVATE_FIELDS = ["focalEmail", "focalPhone"];
+const normEmail = e => String(e || "").trim().toLowerCase();
+const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "").trim());
+const splitEmails = txt => [...new Set(String(txt || "").split(/[\s,;]+/).map(normEmail).filter(validEmail))];
+let accessCfg = { coordinators: [], cwgLeads: {} };
+const errMsg = e => (e && (e.message || e.error_description)) || "Couldn't save just now — please try again.";
+async function rpc(fn, args) {
+  const { data, error } = await db.rpc(fn, args || {});
+  if (error) throw error;
+  return data;
+}
+let ed = null; // working state for the open dialog
+$("f-status").innerHTML = STATUSES.map(st => `<option value="${st.key}">${esc(st.label)}</option>`).join("");
+function setStep(n) {
+  ed.step = n;
+  $("step-0").hidden = n !== 0; $("step-1").hidden = n !== 1; $("step-2").hidden = n !== 2;
+  document.querySelectorAll("#dlg .steps span").forEach(sp => {
+    const k = +sp.dataset.st, idx = k === 3 ? 2 : k;
+    sp.classList.toggle("on", idx === n); sp.classList.toggle("done", idx < n);
+  });
+  $("dlg-err").textContent = "";
+  const save = $("dlg-save"), skip = $("dlg-skip");
+  save.disabled = false; skip.disabled = false;
+  if (n === 0) { save.textContent = "Continue"; skip.hidden = true; setTimeout(() => $("f-email").focus(), 30); }
+  if (n === 1) { save.textContent = "Save status & continue"; skip.hidden = false; skip.textContent = "Skip to details"; }
+  if (n === 2) {
+    const t = ed.terr, role = ed.role;
+    $("status-saved").hidden = !ed.statusSaved;
+    $("status-saved").textContent = ed.statusSaved ? "Status update saved." : "";
+    if (role) {
+      $("details-locked").hidden = true; $("details-form").hidden = false;
+      DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] || ""); });
+      ["f-femail", "f-fphone"].forEach(id => { $(id).placeholder = (k => (t[k] === undefined ? "Saved privately — retype to change" : ""))(id === "f-femail" ? "focalEmail" : "focalPhone"); });
+      save.textContent = "Save details & finish"; skip.hidden = false; skip.textContent = "Finish without details";
+      $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
+    } else {
+      $("details-form").hidden = true; $("details-locked").hidden = false;
+      $("details-locked").innerHTML = `<strong>${esc(ed.email)}</strong> isn't on the approved list for ${esc(t.name)}'s CD Strategy details. Only the territorial focal person, the ${esc(cwgOf(t))} CWG lead and programme coordinators can update details. ${ed.statusSaved ? "Your status update has been saved." : ""}`;
+      save.textContent = "Finish"; skip.hidden = true;
+    }
+  }
+}
+function openDialog(id) {
+  const t = territories.find(x => x.id === id); if (!t) return;
+  let remembered = ""; try { remembered = sessionStorage.getItem("cd-email") || ""; } catch (e) {}
+  ed = { terr: { ...t }, email: "", step: 0, statusSaved: false, detailsSaved: false, newLogs: [] };
+  $("dlg-title").textContent = t.name;
+  const i = sIndex(t.status);
+  $("dlg-current").textContent = `Current status: ${i >= 0 ? STATUSES[i].label : "—"}${t.lastUpdated ? " · last updated " + fmtDate(t.lastUpdated) : ""}`;
+  $("f-email").value = remembered;
+  $("f-status").value = t.status || STATUSES[0].key;
+  $("f-date").value = todayISO();
+  $("f-note").value = "";
+  setStep(0);
+  $("dlg").showModal();
+}
+async function finishDialog() {
+  $("dlg").close();
+  if (!ed || (!ed.statusSaved && !ed.detailsSaved)) return;
+  toast(`${ed.terr.name} updated`);
+  await load();
+}
+async function goDetails() {
+  $("dlg-save").disabled = true; $("dlg-skip").disabled = true;
+  try { ed.role = await rpc("check_details_access", { p_email: ed.email, p_territory: ed.terr.id }); } catch (e) { ed.role = null; }
+  setStep(2);
+}
+$("dlg-cancel").addEventListener("click", () => { if (ed && ed.step === 2 && ed.statusSaved) finishDialog(); else $("dlg").close(); });
+$("dlg-skip").addEventListener("click", () => { if (!ed) return; if (ed.step === 1) goDetails(); else finishDialog(); });
+const writeErr = errMsg;
+$("dlg-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!ed || !db) return;
+  const t = ed.terr;
+  if (ed.step === 0) {
+    const email = $("f-email").value.trim();
+    if (!validEmail(email)) { $("dlg-err").textContent = "Please enter a valid email address."; return; }
+    ed.email = normEmail(email);
+    try { sessionStorage.setItem("cd-email", ed.email); } catch (e2) {}
+    setStep(1); return;
+  }
+  if (ed.step === 1) {
+    const status = $("f-status").value, date = $("f-date").value, note = $("f-note").value.trim();
+    if (!date) { $("dlg-err").textContent = "Please choose the date of the update."; return; }
+    $("dlg-save").disabled = true; $("dlg-skip").disabled = true;
+    try {
+      await rpc("submit_status_update", { p_email: ed.email, p_territory: t.id, p_status: status, p_date: date, p_note: note });
+      Object.assign(t, { status });
+      ed.statusSaved = true;
+      await goDetails();
+    } catch (err) { $("dlg-save").disabled = false; $("dlg-skip").disabled = false; $("dlg-err").textContent = writeErr(err); }
+    return;
+  }
+  if (ed.step === 2) {
+    if (!ed.role) { finishDialog(); return; }
+    const vals = Object.fromEntries(DETAIL_FIELDS.map(([k, , id]) => [k, $(id).value.trim()]));
+    if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
+    if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
+    if (vals.focalEmail) vals.focalEmail = normEmail(vals.focalEmail);
+    // private fields we can't see: only send them if the person typed something
+    ["focalEmail", "focalPhone"].forEach(k => { if (t[k] === undefined && !vals[k]) delete vals[k]; });
+    $("dlg-save").disabled = true; $("dlg-skip").disabled = true;
+    try {
+      const res = await rpc("submit_details_update", { p_email: ed.email, p_territory: t.id, p_details: vals });
+      if (res && res.changed) ed.detailsSaved = true;
+      finishDialog();
+    } catch (err) { $("dlg-save").disabled = false; $("dlg-skip").disabled = false; $("dlg-err").textContent = writeErr(err); }
+  }
+});
+
+/* ---------- access settings (owner / editors) ---------- */
+function renderAccess() {
+  const card = $("access-card");
+  const show = !!(db && isEditor && !summaryMode);
+  card.hidden = !show;
+  if (!show || card.dataset.editing === "1") return;
+  const cl = cwgList().filter(c => c !== UNASSIGNED);
+  $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
+  $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead email(s)</label><textarea data-cwg="${esc(c)}" placeholder="one per line">${esc(((accessCfg.cwgLeads || {})[c] || []).join("\n"))}</textarea></div>`).join("");
+  card.querySelectorAll("textarea").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
+}
+$("acc-save").addEventListener("click", async () => {
+  const card = $("access-card"), b = $("acc-save");
+  const cfg = { coordinators: splitEmails($("acc-coord").value), cwgLeads: {}, updatedAt: Date.now() };
+  card.querySelectorAll("textarea[data-cwg]").forEach(ta => { cfg.cwgLeads[ta.dataset.cwg] = splitEmails(ta.value); });
+  b.disabled = true;
+  try { await rpc("admin_set_access", { p_coordinators: cfg.coordinators, p_cwg_leads: cfg.cwgLeads }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Approved emails saved"); }
+  catch (err) { toast(errMsg(err)); }
+  finally { b.disabled = false; }
+});
+
+/* ---------- database tab ---------- */
+function whoName(l) { return ""; }
+const dbSort = { key: "order", dir: 1 };
+$("db-status").innerHTML = `<option value="">All statuses</option>` + STATUSES.map(st => `<option value="${st.key}">${esc(st.label)}</option>`).join("");
+$("db-search").addEventListener("input", renderDatabase);
+$("db-status").addEventListener("change", renderDatabase);
+$("db-cwg").addEventListener("change", renderDatabase);
+$("db-clear").addEventListener("click", () => { $("db-search").value = ""; $("db-status").value = ""; $("db-cwg").value = ""; renderDatabase(); });
+const badge = k => { const i = sIndex(k); return i >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(STATUSES[i].label)}</span>` : '<span class="muted">—</span>'; };
+const canUpdate = () => !!(canWrite && db && !summaryMode);
+function renderDatabase() {
+  if (typeof currentView === "undefined" || currentView !== "database") return;
+  $("db-list").hidden = !!detailId;
+  $("db-detail").hidden = !detailId;
+  if (detailId) { renderDetail(); renderLog(); return; }
+  const cwgSel = $("db-cwg"), curC = cwgSel.value, cl = cwgList();
+  const opts = zoneList().flatMap(z => [...(z !== "OTHER" ? [["zone:" + z, zoneLabel(z)]] : []), ...cl.filter(c => zoneOfCwg(c) === z).map(c => [c, "\u00a0\u00a0" + c])]);
+  cwgSel.innerHTML = `<option value="">All zones & CWGs</option>` + opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+  cwgSel.value = opts.some(o => o[0] === curC) ? curC : "";
+  const q = $("db-search").value.trim().toLowerCase(), fs = $("db-status").value, fc = cwgSel.value;
+  const cnt = {}; logs.forEach(l => { cnt[l.territoryId] = (cnt[l.territoryId] || 0) + 1; });
+  const cols = [["name", "Territory"], ["focal", "Focal person"], ["target", "Target"], ["status", "Status"], ["lastUpdated", "Last updated"], ["updates", "Updates"]];
+  const rows = territories.map(t => ({ ...t, updates: cnt[t.id] || 0 }))
+    .filter(t => (!fs || t.status === fs) && matchFilter(t, fc) && (!q || [t.name, t.focal, t.target, cwgOf(t)].join(" ").toLowerCase().includes(q)));
+  const val = (r, k) => k === "status" ? sIndex(r[k]) : k === "order" ? terrRank(r) : (r[k] ?? "");
+  rows.sort((a, b) => {
+    const x = val(a, dbSort.key), y = val(b, dbSort.key);
+    const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
+    return (c || String(a.name).localeCompare(String(b.name))) * dbSort.dir;
+  });
+  const upd = canUpdate();
+  $("db-head").innerHTML = `<tr>${cols.map(([k, h]) => `<th class="sortable${k === "updates" ? " num" : ""}" data-k="${k}">${esc(h)}${dbSort.key === k ? `<span class="dir">${dbSort.dir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("")}${upd ? "<th></th>" : ""}</tr>`;
+  $("db-head").querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.k; if (dbSort.key === k) dbSort.dir *= -1; else { dbSort.key = k; dbSort.dir = 1; } renderDatabase();
+  }));
+  $("db-count").textContent = `${rows.length} of ${territories.length} territories`;
+  const ncol = cols.length + (upd ? 1 : 0);
+  if (!rows.length) { $("db-body").innerHTML = `<tr><td colspan="${ncol}" class="muted">${territories.length ? "No territories match these filters." : "No territories yet."}</td></tr>`; return; }
+  const groups = cl.filter(c => rows.some(r => cwgOf(r) === c));
+  const rowHtml = r => `<tr class="clickable" data-tid="${esc(r.id)}" tabindex="0">
+      <td><a class="tname" href="#territory-${esc(r.id)}">${esc(r.name)}</a></td><td>${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td><td class="nowrap">${esc(r.target || "")}</td>
+      <td>${badge(r.status)}</td><td class="nowrap">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td><td class="num">${r.updates}</td>
+      ${upd ? `<td style="text-align:right"><button class="small primary" data-upd="${esc(r.id)}">Update</button></td>` : ""}</tr>`;
+  let lastZone = null;
+  $("db-body").innerHTML = groups.map(g => {
+    const gr = rows.filter(r => cwgOf(r) === g), z = zoneOfCwg(g);
+    let head = "";
+    if (z !== lastZone) { lastZone = z; head = `<tr class="zone-group"><td colspan="${ncol}">${esc(zoneLabel(z))}</td></tr>`; }
+    return head + `<tr class="group-row"><td colspan="${ncol}">${esc(g)} · ${gr.length} territor${gr.length === 1 ? "y" : "ies"}</td></tr>` + gr.map(rowHtml).join("");
+  }).join("");
+  wireRows($("db-body"));
+  $("db-body").querySelectorAll("[data-upd]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); openDialog(b.dataset.upd); }));
+}
+function renderDetail() {
+  const t = territories.find(x => x.id === detailId);
+  const card = $("td-card");
+  if (!t) { card.innerHTML = `<div class="muted">This territory wasn't found.</div>`; $("log-list").innerHTML = ""; $("td-count").textContent = ""; return; }
+  card.innerHTML = `<div class="td-head">
+      <div><h2>${esc(t.name)}</h2>${badge(t.status)}</div>
+      ${canUpdate() ? `<button class="primary" id="td-update">Update</button>` : ""}
+    </div>
+    <div class="td-facts">
+      <div><div class="k">Zone · CWG</div><div class="v">${esc(zoneOf(t) === "OTHER" ? cwgOf(t) : zoneOf(t) + " · " + cwgOf(t))}</div></div>
+      <div><div class="k">Focal person</div><div class="v">${t.focal ? esc(t.focal) : "—"}</div></div>
+      ${t.focalEmail ? `<div><div class="k">Focal email</div><div class="v">${esc(t.focalEmail)}</div></div>` : ""}
+      ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
+      <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
+      <div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>
+      <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
+      <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
+      <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
+    </div>`;
+  const b = $("td-update"); if (b) b.addEventListener("click", () => openDialog(t.id));
+}
+
+function checkPublicSync() {}
+
+/* ---------- log edit / delete ---------- */
+const optHtml = (withBlank) => (withBlank ? `<option value="">—</option>` : "") + STATUSES.map(s => `<option value="${s.key}">${esc(s.label)}</option>`).join("");
+$("l-status").innerHTML = optHtml(false);
+$("l-from").innerHTML = optHtml(true);
+
+let editingLog = null;
+function openLogEdit(id) {
+  const l = logs.find(x => x.id === id); if (!l) return;
+  editingLog = l;
+  $("ldlg-sub").textContent = l.territoryName;
+  $("l-from").value = l.fromStatus || "";
+  $("l-status").value = l.toStatus || STATUSES[0].key;
+  $("l-date").value = l.date || todayISO();
+  $("l-note").value = l.note || "";
+  $("ldlg-err").textContent = "";
+  $("ldlg-save").disabled = false;
+  $("ldlg").showModal();
+}
+$("ldlg-cancel").addEventListener("click", () => $("ldlg").close());
+$("ldlg-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const l = editingLog; if (!l || !db) return;
+  const changes = { fromStatus: $("l-from").value, toStatus: $("l-status").value, date: $("l-date").value, note: $("l-note").value.trim() };
+  if (!changes.date) { $("ldlg-err").textContent = "Please choose the date of the update."; return; }
+  if (changes.fromStatus === (l.fromStatus || "") && changes.toStatus === l.toStatus && changes.date === l.date && changes.note === (l.note || "")) { $("ldlg").close(); return; }
+  $("ldlg-save").disabled = true; $("ldlg-err").textContent = "";
+  try {
+    await rpc("admin_edit_log", { p_id: l.id, p_from: changes.fromStatus, p_to: changes.toStatus, p_date: changes.date, p_note: changes.note });
+    $("ldlg").close(); toast("History entry updated"); await load();
+  } catch (err) { $("ldlg-save").disabled = false; $("ldlg-err").textContent = errMsg(err); }
+});
+
+let deletingLog = null;
+function openLogDelete(id) {
+  const l = logs.find(x => x.id === id); if (!l) return;
+  deletingLog = l;
+  const ti = sIndex(l.toStatus);
+  $("ddlg-desc").innerHTML = `<strong>${esc(l.territoryName)}</strong> · ${esc(fmtDate(l.date))}<br>${ti >= 0 ? esc(STATUSES[ti].label) : ""}${l.note ? `<div class="muted" style="margin-top:4px">${esc(l.note)}</div>` : ""}`;
+  const mine = logs.filter(x => x.territoryId === l.territoryId && x.type !== "details").sort(logSort);
+  let effect = l.type === "details" ? "This removes the record from the history only; the territory's current details stay as they are. This can't be undone." : "This can't be undone.";
+  if (l.type !== "details" && mine[0] && mine[0].id === l.id) {
+    const next = mine[1];
+    const fi = sIndex(next ? next.toStatus : l.fromStatus);
+    effect = `This is the territory's latest entry, so its status will go back to "${fi >= 0 ? STATUSES[fi].label : "its previous status"}"${next ? ` (last updated ${fmtDate(next.date)})` : " with no last-updated date"}. This can't be undone.`;
+  }
+  $("ddlg-effect").textContent = effect;
+  $("ddlg-err").textContent = "";
+  $("ddlg-ok").disabled = false;
+  $("ddlg").showModal();
+}
+$("ddlg-cancel").addEventListener("click", () => $("ddlg").close());
+$("ddlg-ok").addEventListener("click", async () => {
+  const l = deletingLog; if (!l || !db) return;
+  $("ddlg-ok").disabled = true;
+  try {
+    await rpc("admin_delete_log", { p_id: l.id });
+    $("ddlg").close(); toast("History entry deleted"); await load();
+  } catch (err) { $("ddlg-ok").disabled = false; $("ddlg-err").textContent = errMsg(err); }
+});
+
+/* ---------- downloads (PDF one-pager + Excel) ---------- */
+const S_HEX = ["#24215f", "#0a84ff", "#f5c400", "#c0391e", "#005fc0", "#e04c1e"];
+const S_INK = ["#ffffff", "#ffffff", "#1a1a19", "#ffffff", "#ffffff", "#ffffff"];
+const loaded = {};
+function loadScript(src) {
+  if (!loaded[src]) loaded[src] = new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = () => { delete loaded[src]; rej(new Error("load")); }; document.head.appendChild(el); });
+  return loaded[src];
+}
+async function logoDataURL() {
+  const blob = await (await fetch("aslp-logo-light.png")).blob();
+  return await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+}
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const fileStamp = () => todayISO();
+const sortedTerr = (list = territories) => [...list].sort((a, b) => terrRank(a) - terrRank(b) || (a.name || "").localeCompare(b.name || ""));
+const pdfSafe = t => String(t ?? "").replace(/[–—]/g, "-").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[^\x00-\xff]/g, "");
+
+async function saveFile(filename, data, btn, label) {
+  try {
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("Download started");
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+
+async function buildPDF() {
+  await loadScript("vendor/jspdf.umd.min.js");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const M = 14, PW = 210, CW = PW - 2 * M;
+  const ink = [11, 11, 11], sub = [82, 81, 78], mut = [122, 121, 116], line = [226, 225, 220];
+  let y = 10;
+  try { const logo = await logoDataURL(); doc.addImage(logo, "PNG", M, y, 92, 92 * 464 / 1600); } catch (e) {}
+  y += 92 * 464 / 1600 + 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...ink);
+  doc.text(pdfSafe(cwgFilter ? `CD Strategy - Summary Dashboard: ${filterLabel(cwgFilter)}` : "CD Strategy - Summary Dashboard"), M, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...mut);
+  doc.text(pdfSafe(`Status as of ${fmtDate(todayISO())}`), PW - M, y, { align: "right" });
+  y += 6;
+
+  // KPIs
+  const c = counts(), total = viewTerr().length, done = c[4] + c[5];
+  const latest = latestInfo();
+  const kpis = [
+    ["Territories", String(total), "being tracked"],
+    ["Approved or implementing", String(done), total ? `${Math.round(done / total * 100)}% of territories` : ""],
+    ["Still in drafting stages", String(c[0] + c[1] + c[2] + c[3]), "not started to submitted"],
+    ["Most recent update", latest ? fmtDate(latest.date) : "-", latest ? latest.name : "no updates logged yet"],
+  ];
+  const kw = (CW - 3 * 4) / 4, kh = 18;
+  kpis.forEach((k, i) => {
+    const x = M + i * (kw + 4);
+    doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(x, y, kw, kh, 2, 2, "S");
+    doc.setFontSize(7); doc.setTextColor(...sub); doc.text(pdfSafe(k[0]), x + 3, y + 5);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(i === 3 ? 11 : 15); doc.setTextColor(...ink); doc.text(pdfSafe(k[1]), x + 3, y + 12);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut); doc.text(pdfSafe(doc.splitTextToSize(k[2], kw - 6)[0] || ""), x + 3, y + 16);
+  });
+  y += kh + 7;
+
+  // Chart (left) + status table (right)
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink);
+  doc.text("Territories by status", M, y); doc.text("Status count", M + 112, y);
+  y += 4;
+  const cx = M + 7, cw = 100, ch = 50, cy0 = y + 4, base = cy0 + ch;
+  const max = Math.max(4, ...c), step = max <= 10 ? 1 : max <= 20 ? 2 : 5, top = Math.ceil(max / step) * step;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+  for (let v = 0; v <= top; v += step) {
+    const yy = base - (v / top) * ch;
+    doc.setDrawColor(236, 235, 231); doc.setLineWidth(0.2); doc.line(cx, yy, cx + cw, yy);
+    doc.setTextColor(...mut); doc.text(String(v), cx - 2, yy + 1, { align: "right" });
+  }
+  const bw = cw / 6, barW = Math.min(11, bw - 4);
+  STATUSES.forEach((st, i) => {
+    const h = (c[i] / top) * ch, x = cx + i * bw + (bw - barW) / 2;
+    if (h > 0) { doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(x, base - h, barW, h, 0.8, 0.8, "F"); doc.rect(x, base - Math.min(h, 1), barW, Math.min(h, 1), "F"); }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...ink);
+    doc.text(String(c[i]), x + barW / 2, base - h - 1.5, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6); doc.setTextColor(...sub);
+    const words = SHORT[i].split(" "), mid = Math.ceil(words.length / 2);
+    doc.text(words.slice(0, mid).join(" "), x + barW / 2, base + 4, { align: "center" });
+    doc.text(words.slice(mid).join(" "), x + barW / 2, base + 7, { align: "center" });
+  });
+  doc.setDrawColor(...mut); doc.setLineWidth(0.3); doc.line(cx, base, cx + cw, base);
+
+  // status table
+  const tx = M + 112, tw = CW - 112; let ty = y + 2;
+  doc.setFontSize(7); doc.setTextColor(...sub); doc.setFont("helvetica", "bold");
+  doc.text("Status", tx, ty + 3); doc.text("Count", tx + tw, ty + 3, { align: "right" });
+  ty += 5; doc.setDrawColor(...line); doc.line(tx, ty, tx + tw, ty);
+  doc.setFont("helvetica", "normal");
+  STATUSES.forEach((st, i) => {
+    const lines = doc.splitTextToSize(st.label, tw - 16);
+    const rh = Math.max(7, lines.length * 3 + 3);
+    doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(tx, ty + rh / 2 - 1.6, 3.2, 3.2, 0.6, 0.6, "F");
+    doc.setFontSize(7); doc.setTextColor(...ink); doc.text(lines, tx + 5, ty + rh / 2 - (lines.length - 1) * 1.5 + 1);
+    doc.text(String(c[i]), tx + tw, ty + rh / 2 + 1, { align: "right" });
+    ty += rh; doc.setDrawColor(236, 235, 231); doc.line(tx, ty, tx + tw, ty);
+  });
+  doc.setFont("helvetica", "bold"); doc.text("Total", tx + 5, ty + 4.5); doc.text(String(total), tx + tw, ty + 4.5, { align: "right" });
+  ty += 7;
+
+  // territory table
+  y = Math.max(base + 16, ty + 7);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territories", M, y);
+  y += 3;
+  const rows = sortedTerr(viewTerr());
+  const cols = [["Territory", 44], ["CWG", 26], ["Focal person", 38], ["Target", 16], ["Status", 38], ["Last updated", 20]];
+  const avail = 285 - y;
+  const rh = Math.min(6.2, avail / (rows.length + 1));
+  const fs = rh < 5 ? 6.2 : 7.2;
+  doc.setFillColor(244, 244, 242); doc.rect(M, y, CW, rh, "F");
+  doc.setFontSize(fs); doc.setTextColor(...sub);
+  let x = M; cols.forEach(([h, w]) => { doc.text(h, x + 2, y + rh / 2 + 1.1); x += w; });
+  y += rh;
+  doc.setFont("helvetica", "normal");
+  rows.forEach((t, r) => {
+    if (r % 2) { doc.setFillColor(250, 250, 249); doc.rect(M, y, CW, rh, "F"); }
+    const i = sIndex(t.status);
+    const cells = [t.name, cwgOf(t), t.focal || "-", t.target || "", i >= 0 ? SHORT[i] : "-", t.lastUpdated ? fmtDate(t.lastUpdated) : "-"];
+    let xx = M;
+    cells.forEach((v, ci) => {
+      const w = cols[ci][1];
+      doc.setTextColor(...(ci === 0 ? ink : sub)); doc.setFont("helvetica", ci === 0 ? "bold" : "normal");
+      let tx2 = xx + 2;
+      if (ci === 4 && i >= 0) { doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(xx + 2, y + rh / 2 - 1.4, 2.8, 2.8, 0.5, 0.5, "F"); tx2 += 4.2; doc.setTextColor(...ink); }
+      const txt = doc.splitTextToSize(pdfSafe(v), w - (tx2 - xx) - 1)[0] || "";
+      doc.text(txt, tx2, y + rh / 2 + 1.1);
+      xx += w;
+    });
+    y += rh;
+  });
+  doc.setDrawColor(...line); doc.line(M, y, M + CW, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut);
+  doc.text("Asia-Pacific Sharing & Learning Programme (ASLP) - The Salvation Army", M, 291);
+  doc.text(pdfSafe(`Generated ${new Date().toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`), PW - M, 291, { align: "right" });
+  return doc.output("blob");
+}
+
+async function buildXLSX() {
+  await loadScript("vendor/exceljs.min.js");
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "CD Strategy Tracker"; wb.created = new Date();
+  const argb = h => "FF" + h.slice(1).toUpperCase();
+  const toDate = d => { if (!d) return null; const [Y, Mo, D] = d.split("-").map(Number); return new Date(Date.UTC(Y, Mo - 1, D)); };
+  const headStyle = row => row.eachCell(cell => { cell.font = { bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF24215F" } }; cell.alignment = { vertical: "middle" }; });
+  const c = counts(territories), total = territories.length;
+
+  // Dashboard sheet
+  const ds = wb.addWorksheet("Dashboard", { views: [{ showGridLines: false }] });
+  ds.columns = [{ width: 52 }, { width: 12 }, { width: 14 }];
+  try {
+    const logo = await logoDataURL();
+    const id = wb.addImage({ base64: logo, extension: "png" });
+    ds.addImage(id, { tl: { col: 0, row: 0 }, ext: { width: 400, height: 116 } });
+  } catch (e) {}
+  for (let r = 1; r <= 7; r++) ds.getRow(r).height = 17;
+  ds.getCell("A9").value = "CD Strategy - Summary Dashboard"; ds.getCell("A9").font = { bold: true, size: 16 };
+  ds.getCell("A10").value = `Status as of ${fmtDate(todayISO())}`; ds.getCell("A10").font = { color: { argb: "FF7A7974" } };
+  const done = c[4] + c[5];
+  const kp = [["Territories", total], ["Approved or implementing", done], ["Share approved or implementing", total ? done / total : 0], ["Still in drafting stages", c[0] + c[1] + c[2] + c[3]]];
+  kp.forEach((k, i) => { const r = ds.getRow(12 + i); r.getCell(1).value = k[0]; r.getCell(2).value = k[1]; r.getCell(2).font = { bold: true }; if (i === 2) r.getCell(2).numFmt = "0%"; });
+  const hr = ds.getRow(17); hr.values = ["Status", "Count"]; headStyle(hr);
+  STATUSES.forEach((st, i) => {
+    const r = ds.getRow(18 + i); r.values = [st.label, c[i]];
+    r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } };
+    r.getCell(1).font = { color: { argb: argb(S_INK[i]) } };
+  });
+  const tr = ds.getRow(24); tr.values = ["Total", { formula: "SUM(B18:B23)", result: total }]; tr.font = { bold: true };
+
+  // Territories sheet
+  const ts = wb.addWorksheet("Territories", { views: [{ state: "frozen", ySplit: 1 }] });
+  ts.columns = [
+    { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 10 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 },
+    { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Strategy period", key: "period", width: 14 },
+    { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
+    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 },
+  ];
+  headStyle(ts.getRow(1));
+  sortedTerr().forEach(t => {
+    const i = sIndex(t.status);
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneOf(t), cwg: cwgOf(t), focal: t.focal || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", period: t.strategyPeriod || "", target: t.target || "", status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
+    r.getCell("last").numFmt = "dd mmm yyyy";
+    if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
+  });
+  ts.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ts.columnCount } };
+
+  // Status by CWG sheet
+  const cs = wb.addWorksheet("Status by CWG", { views: [{ state: "frozen", ySplit: 1 }] });
+  cs.columns = [{ header: "CWG", key: "cwg", width: 22 }, ...STATUSES.map((st, i) => ({ header: st.label, key: "s" + i, width: 18 })), { header: "Total", key: "total", width: 10 }];
+  headStyle(cs.getRow(1));
+  STATUSES.forEach((st, i) => { const cell = cs.getRow(1).getCell(i + 2); cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; cell.font = { bold: true, color: { argb: argb(S_INK[i]) } }; cell.alignment = { wrapText: true, vertical: "middle", horizontal: "center" }; });
+  cs.getRow(1).height = 45;
+  const cl = cwgList();
+  cl.forEach((g, gi) => {
+    const cc = counts(territories.filter(t => cwgOf(t) === g));
+    const rowNo = gi + 2;
+    const r = cs.addRow({ cwg: g, ...Object.fromEntries(cc.map((v, i) => ["s" + i, v])), total: { formula: `SUM(B${rowNo}:G${rowNo})`, result: cc.reduce((a, b) => a + b, 0) } });
+    for (let k = 2; k <= 7; k++) r.getCell(k).alignment = { horizontal: "center" };
+  });
+  const last = cl.length + 1;
+  const tot = cs.addRow({ cwg: "All CWGs", ...Object.fromEntries(STATUSES.map((st, i) => ["s" + i, { formula: `SUM(${String.fromCharCode(66 + i)}2:${String.fromCharCode(66 + i)}${last})`, result: c[i] }])), total: { formula: `SUM(H2:H${last})`, result: total } });
+  tot.font = { bold: true }; for (let k = 2; k <= 7; k++) tot.getCell(k).alignment = { horizontal: "center" };
+
+  // Log sheet
+  const ls = wb.addWorksheet("Update Log", { views: [{ state: "frozen", ySplit: 1 }] });
+  ls.columns = [
+    { header: "Date of update", key: "date", width: 15 }, { header: "Territory", key: "terr", width: 30 },
+    { header: "Previous status", key: "from", width: 44 }, { header: "New status", key: "to", width: 44 },
+    { header: "Type", key: "type", width: 12 }, { header: "Note", key: "note", width: 50 }, { header: "Details changed", key: "chg", width: 50 }, { header: "Logged by", key: "by", width: 22 }, { header: "Email", key: "email", width: 28 },
+    { header: "Recorded at", key: "rec", width: 19 }, { header: "Edited at", key: "ed", width: 19 },
+  ];
+  headStyle(ls.getRow(1));
+  [...logs].sort(logSort).forEach(l => {
+    const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus);
+    const r = ls.addRow({
+      date: toDate(l.date), terr: l.territoryName, from: fi >= 0 ? STATUSES[fi].label : "", to: ti >= 0 ? STATUSES[ti].label : "",
+      type: l.type === "details" ? "Details" : "Status", note: l.note || "", chg: (l.changes || []).map(c => `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join("\n"), email: l.email || "", by: whoName(l), rec: l.createdAt ? new Date(l.createdAt) : null, ed: l.editedAt ? new Date(l.editedAt) : null,
+    });
+    r.getCell("date").numFmt = "dd mmm yyyy"; r.getCell("rec").numFmt = "dd mmm yyyy hh:mm"; r.getCell("ed").numFmt = "dd mmm yyyy hh:mm";
+    r.getCell("note").alignment = { wrapText: true, vertical: "top" };
+    if (ti >= 0) { r.getCell("to").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[ti]) } }; r.getCell("to").font = { color: { argb: argb(S_INK[ti]) } }; }
+  });
+  ls.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ls.columnCount } };
+  const buf = await wb.xlsx.writeBuffer();
+  return new Blob([buf]);
+}
+
+$("dl-pdf").addEventListener("click", async e => {
+  const b = e.currentTarget, label = b.textContent; b.disabled = true; b.textContent = "Preparing PDF…";
+  try { const blob = await buildPDF(); await saveFile(`CD_Strategy_Dashboard_${fileStamp()}.pdf`, blob, b, label); }
+  catch (err) { b.disabled = false; b.textContent = label; toast("Couldn't build the PDF — please try again"); }
+});
+$("dl-xlsx").addEventListener("click", async e => {
+  const b = e.currentTarget, label = b.textContent; b.disabled = true; b.textContent = "Preparing Excel…";
+  try { const blob = await buildXLSX(); await saveFile(`CD_Strategy_Dashboard_${fileStamp()}.xlsx`, blob, b, label); }
+  catch (err) { b.disabled = false; b.textContent = label; toast("Couldn't build the Excel file — please try again"); }
+});
+
+/* ---------- data (Supabase) ---------- */
+async function load() {
+  try {
+    const d = await rpc("get_dashboard");
+    territories = d.territories || [];
+    logs = d.log || [];
+    viewer = d.viewer || viewer;
+    isEditor = !!viewer.is_coordinator;
+    loadedOnce = true;
+    banner("");
+    if (isEditor) { try { const a = await rpc("admin_get_access"); accessCfg = { coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {} }; } catch (e) {} }
+    renderAll(); renderAuth();
+    $("foot-sync").textContent = "Data refreshed " + new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    banner(loadedOnce ? "Couldn't refresh just now — showing the last loaded data." : "The data couldn't be loaded. Please check your connection and reload the page.");
+  }
+}
+function renderAuth() {
+  const b = $("auth-btn");
+  b.textContent = viewer.email ? (isEditor ? `Coordinator: ${viewer.email}` : `Signed in: ${viewer.email}`) : "Coordinator sign-in";
+}
+$("auth-btn").addEventListener("click", () => {
+  const signedIn = !!viewer.email;
+  $("adlg-in").hidden = signedIn; $("adlg-sent").hidden = true; $("adlg-err").textContent = "";
+  $("adlg-out").hidden = !signedIn;
+  $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>${isEditor ? " (programme coordinator)" : ". This email isn't a programme coordinator, so coordinator tools stay hidden."}</div>` : "";
+  $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
+  $("adlg-go").disabled = false;
+  $("adlg").showModal();
+});
+$("adlg-cancel").addEventListener("click", () => $("adlg").close());
+$("adlg-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (viewer.email) { await db.auth.signOut(); $("adlg").close(); viewer = { email: "", is_coordinator: false }; await load(); toast("Signed out"); return; }
+  const email = $("a-email").value.trim();
+  if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
+  $("adlg-go").disabled = true; $("adlg-err").textContent = "";
+  const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  if (error) { $("adlg-go").disabled = false; $("adlg-err").textContent = error.message || "Couldn't send the sign-in email."; return; }
+  $("adlg-sent").hidden = false; $("adlg-sent").textContent = `Check ${email} for a sign-in link, then open it in this browser.`;
+});
+
+applyMode();
+(async () => {
+  if (!window.supabase) { banner("The page couldn't load its data library. Please check your connection and reload."); return; }
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: "pkce", persistSession: true, detectSessionInUrl: true } });
+  db.auth.onAuthStateChange((evt) => {
+    if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") {
+      if (location.search.includes("code=")) history.replaceState(null, "", location.pathname + location.hash);
+      load();
+    }
+  });
+  await load();
+  setInterval(load, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
+})();
+</script>
+</body>
+</html>
