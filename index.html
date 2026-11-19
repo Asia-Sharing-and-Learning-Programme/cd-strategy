@@ -163,6 +163,18 @@
   .cwg-pills { display: flex; flex-wrap: wrap; gap: 6px; }
   .cwg-pills button { border-radius: 999px; padding: 4px 12px; font-size: 12px; }
   .cwg-pills button.on { background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary); }
+  .mini-lock { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 900; letter-spacing: -.5px; line-height: 1; }
+  .mini-lock .cl-zone { color: var(--cwg-b); } .mini-lock .cl-num { color: var(--cwg-a); margin-left: 1px; }
+  .cwg-pills button.branded { border-color: color-mix(in srgb, var(--cwg-a) 55%, transparent); background: color-mix(in srgb, var(--cwg-a) 8%, var(--surface-1)); }
+  .cwg-pills button.branded .mini-lock { font-size: 13.5px; }
+  .cwg-pills button.zone-pill { color: var(--cwg-b); font-weight: 600; }
+  .cwg-pills button.branded.on { background: var(--cwg-a); border-color: var(--cwg-a); color: #fff; }
+  .cwg-pills button.zone-pill.on { background: var(--cwg-b); border-color: var(--cwg-b); }
+  .cwg-pills button.branded.on .cl-zone, .cwg-pills button.branded.on .cl-num { color: #fff; }
+  tr.cwg-row.branded td:first-child { box-shadow: inset 4px 0 0 var(--cwg-a); }
+  tr.cwg-row.branded .mini-lock { font-size: 15px; }
+  tr.cwg-row.zone-row.branded td:first-child strong { color: var(--cwg-b); }
+  tr.cwg-row.branded.active td, tr.cwg-row.branded:hover td { background: color-mix(in srgb, var(--cwg-a) 10%, var(--surface-1)); }
   .stack { display: flex; height: 12px; border-radius: 4px; overflow: hidden; min-width: 120px; gap: 2px; background: var(--grid); }
   .stack span { display: block; height: 100%; }
   tr.cwg-row { cursor: pointer; }
@@ -670,7 +682,12 @@ function counts(list = viewTerr()) {
 function renderCwgBar() {
   const cl = cwgList(), zl = zoneList();
   if (cwgFilter && !territories.some(t => matchFilter(t, cwgFilter))) cwgFilter = "";
-  const btn = (v, label) => `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}">${esc(label)}</button>`;
+  const btn = (v, label) => {
+    const p = cwgParts(v), z = v.startsWith("zone:") ? v.slice(5) : "";
+    const brand = p ? ` branded" style="${cwgVars(v)}` : (z === "SPEA" || z === "SASIA") ? ` branded zone-pill" style="--cwg-b: var(--${z.toLowerCase()}); --cwg-a: var(--${z.toLowerCase()});` : "";
+    const inner = p ? `<span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>` : esc(label);
+    return `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}${brand}" ${p ? `aria-label="${esc(p.zone + " " + p.num)} Cluster Working Group"` : ""}>${inner}</button>`;
+  };
   const el = $("cwg-pills");
   el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span>` + (z !== "OTHER" ? btn("zone:" + z, zoneLabel(z)) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("")).join("");
   el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { cwgFilter = b.dataset.cwg; statusFilter = null; renderAll(); }));
@@ -682,13 +699,15 @@ function renderCwgMatrix() {
   $("cwgm-head").innerHTML = `<tr><th>Zone / CWG</th>${STATUSES.map((st, i) => `<th class="cnt" title="${esc(st.label)}"><span class="sw" style="background:${sColor(i)};margin:0 4px 0 0"></span>${esc(SHORT[i])}</th>`).join("")}<th class="num">Total</th><th>Progress</th></tr>`;
   const row = (val, label, ts, cls) => {
     const cc = counts(ts), n = ts.length;
-    return `<tr class="cwg-row ${cls} ${cwgFilter === val ? "active" : ""}" data-cwg="${esc(val)}" tabindex="0">
+    const z = val.startsWith("zone:") ? val.slice(5).toLowerCase() : "";
+    const st = cwgParts(val) ? cwgVars(val) : (z === "spea" || z === "sasia") ? `--cwg-b: var(--${z}); --cwg-a: var(--${z});` : "";
+    return `<tr class="cwg-row ${cls} ${st ? "branded" : ""} ${cwgFilter === val ? "active" : ""}" data-cwg="${esc(val)}" tabindex="0" style="${st}">
       <td>${label}</td>${cc.map(v => `<td class="cnt ${v ? "" : "zero"}">${v}</td>`).join("")}<td class="num"><strong>${n}</strong></td>
       <td><div class="stack" title="${esc(STATUSES.map((st, i) => `${SHORT[i]}: ${cc[i]}`).join(" · "))}">${cc.map((v, i) => v ? `<span style="width:${v / n * 100}%;background:${sColor(i)}"></span>` : "").join("")}</div></td></tr>`;
   };
   $("cwgm-body").innerHTML = zl.map(z =>
     (z !== "OTHER" ? row("zone:" + z, `<strong>${esc(zoneLabel(z))}</strong>`, territories.filter(t => zoneOf(t) === z), "zone-row") : "") +
-    cl.filter(c => zoneOfCwg(c) === z).map(c => row(c, `<span class="indent">${esc(c)}</span>`, territories.filter(t => cwgOf(t) === c), "")).join("")
+    cl.filter(c => zoneOfCwg(c) === z).map(c => row(c, `<span class="indent">${cwgParts(c) ? `<span class="mini-lock" title="${esc(c)} Cluster Working Group"><span class="cl-zone">${cwgParts(c).zone}</span><span class="cl-num">${cwgParts(c).num}</span></span>` : esc(c)}</span>`, territories.filter(t => cwgOf(t) === c), "")).join("")
   ).join("");
   const all = counts(territories);
   $("cwgm-foot").innerHTML = `<tr><td><strong>All zones</strong></td>${all.map(v => `<td class="cnt"><strong>${v}</strong></td>`).join("")}<td class="num"><strong>${territories.length}</strong></td><td></td></tr>`;
