@@ -396,7 +396,7 @@
         <div class="country-chips" id="td-countries"></div>
       </section>
       <section class="card">
-        <div class="toolbar"><h2 style="margin:0">Update history</h2><span class="spacer"></span><span class="db-count" id="td-count"></span></div>
+        <div class="toolbar"><h2 style="margin:0">Update history</h2><span class="spacer"></span><span class="db-count" id="td-count"></span><button class="small" id="td-xlsx" hidden title="Read-only Excel of this territory's update history">⬇ Excel</button></div>
         <div id="log-list"><div class="muted">Loading…</div></div>
       </section>
     </div>
@@ -1457,6 +1457,7 @@ function renderDetail() {
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
     </div>`;
   const te = $("td-edit"); if (te) te.addEventListener("click", () => openDialog(t.id));
+  $("td-xlsx").hidden = !canEditTerr(t.id);
   renderMiniMap(t);
 
 }
@@ -1774,6 +1775,48 @@ async function buildXLSX(downloader = "") {
   const buf = await wb.xlsx.writeBuffer();
   return new Blob([buf]);
 }
+
+// Per-territory update history (Excel) — for signed-in admins (CWG leads: their CWG) and the territory's CD focal person
+async function buildHistoryXLSX(t) {
+  await loadScript("vendor/exceljs.min.js");
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "CD Strategy Tracker"; wb.created = new Date();
+  const argb = h => "FF" + h.slice(1).toUpperCase();
+  const toDate = d => { if (!d) return null; const [Y, Mo, D] = d.split("-").map(Number); return new Date(Date.UTC(Y, Mo - 1, D)); };
+  const ws = wb.addWorksheet("Update history", { views: [{ state: "frozen", ySplit: 7, showGridLines: false }] });
+  ws.columns = [{ width: 15 }, { width: 11 }, { width: 40 }, { width: 40 }, { width: 50 }, { width: 55 }, { width: 28 }, { width: 19 }, { width: 19 }];
+  const si = sIndex(t.status), stamp = new Date().toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  ws.getCell("A1").value = `${t.name} — CD Strategy update history`; ws.getCell("A1").font = { bold: true, size: 15 };
+  ws.getCell("A2").value = `${zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)) + " · "}${cwgOf(t)}`; ws.getCell("A2").font = { color: { argb: "FF52514E" } };
+  ws.getCell("A3").value = `Current status: ${si >= 0 ? STATUSES[si].label : "—"}${t.lastUpdated ? ` (last updated ${fmtDate(t.lastUpdated)})` : ""}`;
+  ws.getCell("A4").value = `Focal person: ${t.focal || "—"}${t.focalRole ? `, ${t.focalRole}` : ""} · Strategy period: ${t.strategyPeriod || "—"}`;
+  ws.getCell("A5").value = `Read-only copy downloaded by ${viewer.email} on ${stamp}`; ws.getCell("A5").font = { italic: true, size: 9, color: { argb: "FF7A7974" } };
+  const head = ws.getRow(7);
+  head.values = ["Date of update", "Type", "Previous status", "New status", "Note", "Details changed", "Logged by (email)", "Recorded at", "Edited at"];
+  head.eachCell(cell => { cell.font = { bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF24215F" } }; cell.alignment = { vertical: "middle", wrapText: true }; });
+  const list = logs.filter(l => l.territoryId === t.id).sort(logSort);
+  if (!list.length) ws.getCell("A8").value = "No updates logged yet.";
+  list.forEach((l, i) => {
+    const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus), r = ws.getRow(8 + i), isDet = l.type === "details";
+    r.values = [toDate(l.date), isDet ? "Details" : "Status", isDet ? "" : (fi >= 0 ? STATUSES[fi].label : ""), isDet ? "" : (ti >= 0 ? STATUSES[ti].label : ""), l.note || "",
+      (l.changes || []).map(c => `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join("\n"), l.email || "", l.createdAt ? new Date(l.createdAt) : null, l.editedAt ? new Date(l.editedAt) : null];
+    r.getCell(1).numFmt = "dd mmm yyyy"; r.getCell(8).numFmt = "dd mmm yyyy hh:mm"; r.getCell(9).numFmt = "dd mmm yyyy hh:mm";
+    [5, 6].forEach(k => r.getCell(k).alignment = { wrapText: true, vertical: "top" });
+    if (!isDet && ti >= 0) { r.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[ti]) } }; r.getCell(4).font = { color: { argb: argb(S_INK[ti]) } }; }
+  });
+  if (list.length) ws.autoFilter = { from: { row: 7, column: 1 }, to: { row: 7, column: 9 } };
+  try { ws.addBackgroundImage(wb.addImage({ base64: await fileDataURL("aslp-watermark.png"), extension: "png" })); } catch (e) {}
+  ws.headerFooter.oddFooter = `&L© 2026 Asia-Pacific Sharing & Learning Programme (ASLP) – read-only copy&R${String(viewer.email || "").replace(/&/g, "&&")} · ${stamp}`;
+  await ws.protect(randomPassword(), { selectLockedCells: true, selectUnlockedCells: true, formatCells: false, formatColumns: false, formatRows: false,
+    insertRows: false, insertColumns: false, deleteRows: false, deleteColumns: false, sort: false, autoFilter: false, objects: false, scenarios: false });
+  return new Blob([await wb.xlsx.writeBuffer()]);
+}
+$("td-xlsx").addEventListener("click", async () => {
+  const t = territories.find(x => x.id === detailId); if (!t || !canEditTerr(t.id)) return;
+  const b = $("td-xlsx"), label = b.textContent; b.disabled = true; b.textContent = "Preparing…";
+  try { await saveFile(`${t.name.replace(/[^A-Za-z0-9]+/g, "_")}_update_history_${fileStamp()}.xlsx`, await buildHistoryXLSX(t), b, label); }
+  catch (err) { b.disabled = false; b.textContent = label; toast("Couldn't build the Excel file — please try again"); }
+});
 
 // PDF scope: all territories, one zone, or one CWG (defaults to the dashboard's current filter)
 $("dl-pdf").addEventListener("click", () => {
