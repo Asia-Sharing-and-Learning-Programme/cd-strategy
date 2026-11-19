@@ -220,6 +220,7 @@
   .chip-picker { display: flex; gap: 6px; }
   .signin-warn { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; background: rgba(245,196,0,.14); border: 1px solid rgba(245,196,0,.55); }
   .signin-warn strong { font-weight: 700; }
+  .ct-table input { width: 100%; min-width: 170px; padding: 5px 8px; font-size: 12.5px; }
   .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .role-opt { display: flex; gap: 8px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; font-weight: 400; }
   .role-opt input { margin-top: 3px; width: auto; flex: none; }
@@ -351,13 +352,20 @@
   </div>
   <div id="view-admin" hidden>
       <section class="card" id="access-card" hidden>
-        <h2 style="margin-bottom:4px">Admin access &amp; approved emails</h2>
-        <div class="muted" style="font-size:12px;line-height:1.6">Everyone listed here has <strong>admin access</strong>: they can sign in with "Sign in → Admin access", manage this list, see contact details and emails, and edit or delete history entries. They can also update the CD Strategy details of territories (programme coordinators: all territories; CWG leads: their CWG's territories). Each territory's focal person (status and details) and backup person (status only) are registered in that territory's CD Strategy details. You can't remove your own email.</div>
+        <h2 style="margin-bottom:4px">Admins</h2>
+        <div class="muted" style="font-size:12px;line-height:1.6">Everyone listed here can <strong>Sign in → Admin</strong>. Admins can see contact details and emails, edit or delete history entries, manage these lists and set each territory's focal and backup persons (below). They can also update CD Strategy details: programme coordinators and other admins for all territories, CWG leads for their CWG's territories. One email per line. You can't remove your own email.</div>
         <div class="access-grid">
-          <div class="field"><label for="acc-coord">Programme coordinator email(s)</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
+          <div class="field"><label for="acc-coord">Programme coordinators</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
+          <div class="field"><label for="acc-other">Other admins</label><textarea id="acc-other" placeholder="one per line (not coordinators, but need admin access)"></textarea></div>
           <div id="acc-leads" style="display:contents"></div>
         </div>
-        <div style="margin-top:12px"><button class="primary small" id="acc-save">Save approved emails</button></div>
+        <div style="margin-top:12px"><button class="primary small" id="acc-save">Save admins</button></div>
+      </section>
+      <section class="card" id="contacts-card" style="margin-top:16px" hidden>
+        <div class="toolbar"><h2 style="margin:0">Focal &amp; backup persons</h2><span class="spacer"></span><span class="db-count" id="ct-count"></span></div>
+        <div class="muted" style="font-size:12px;line-height:1.6;margin-bottom:8px">The <strong>focal person</strong> can Sign in → CD Focal Person and update their territory's status and CD Strategy details. The <strong>backup person</strong> can update the status only (no sign-in needed). Leave a box empty to remove someone. Every change is recorded in the territory's update history.</div>
+        <div class="tblwrap"><table class="ct-table"><thead><tr><th>Territory</th><th>CWG</th><th>Focal person</th><th>Focal person email</th><th>Backup person email</th></tr></thead><tbody id="ct-body"></tbody></table></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center"><button class="primary small" id="ct-save">Save focal &amp; backup persons</button><span class="muted" id="ct-note" style="font-size:12px"></span></div>
       </section>
       <section class="card" id="dl-card" style="margin-top:16px" hidden>
         <div class="toolbar"><h2 style="margin:0">Excel downloads</h2><span class="spacer"></span><span class="db-count" id="dl-count"></span></div>
@@ -647,7 +655,7 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); } catch (e) {} }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderContacts(); } catch (e) {} }
 
 function latestInfo() {
   const ids = new Set(viewTerr().map(t => t.id));
@@ -868,7 +876,7 @@ const hqLabel = t => isRegion(t) ? "Regional Headquarters" : "Territorial Headqu
 const hqAbbr = t => isRegion(t) ? "RHQ" : "THQ";
 const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "").trim());
 const splitEmails = txt => [...new Set(String(txt || "").split(/[\s,;]+/).map(normEmail).filter(validEmail))];
-let accessCfg = { coordinators: [], cwgLeads: {} };
+let accessCfg = { coordinators: [], cwgLeads: {}, otherAdmins: [], contacts: [] };
 const errMsg = e => (e && (e.message || e.error_description)) || "Couldn't save just now — please try again.";
 async function rpc(fn, args) {
   const { data, error } = await db.rpc(fn, args || {});
@@ -1080,15 +1088,45 @@ function renderAccess() {
   if (!show || card.dataset.editing === "1") return;
   const cl = cwgList().filter(c => c !== UNASSIGNED);
   $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
+  $("acc-other").value = (accessCfg.otherAdmins || []).join("\n");
   $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead email(s)</label><textarea data-cwg="${esc(c)}" placeholder="one per line">${esc(((accessCfg.cwgLeads || {})[c] || []).join("\n"))}</textarea></div>`).join("");
   card.querySelectorAll("textarea").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
 }
+function renderContacts() {
+  const card = $("contacts-card");
+  const show = !!(db && isEditor && (accessCfg.contacts || []).length);
+  card.hidden = !show;
+  if (!show || card.dataset.editing === "1") return;
+  const rows = accessCfg.contacts;
+  $("ct-count").textContent = `${rows.filter(r => r.focalEmail).length} of ${rows.length} with a focal person email`;
+  $("ct-body").innerHTML = rows.map(r => `<tr data-id="${esc(r.id)}">
+    <td>${esc(r.name)}</td><td class="nowrap">${esc(r.cwg || "")}</td><td>${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td>
+    <td><input type="email" data-k="focalEmail" maxlength="200" value="${esc(r.focalEmail || "")}" ${r.canEdit ? "" : "disabled title=\"Only this territory's CWG lead or a programme coordinator can change this\""} placeholder="name@…"></td>
+    <td><input type="email" data-k="backupEmail" maxlength="200" value="${esc(r.backupEmail || "")}" ${r.canEdit ? "" : "disabled"} placeholder="name@…"></td></tr>`).join("");
+  $("ct-body").querySelectorAll("input").forEach(i => i.addEventListener("input", () => { card.dataset.editing = "1"; $("ct-note").textContent = "Unsaved changes"; }));
+}
+$("ct-save").addEventListener("click", async () => {
+  const card = $("contacts-card"), b = $("ct-save");
+  const items = [];
+  for (const tr of $("ct-body").querySelectorAll("tr")) {
+    const r = accessCfg.contacts.find(x => x.id === tr.dataset.id); if (!r || !r.canEdit) continue;
+    const fe = normEmail(tr.querySelector('[data-k="focalEmail"]').value), be = normEmail(tr.querySelector('[data-k="backupEmail"]').value);
+    for (const [v, who] of [[fe, "focal person"], [be, "backup person"]]) if (v && !validEmail(v)) { toast(`The ${who} email for ${r.name} doesn't look right.`); return; }
+    if (fe && fe === be) { toast(`The focal and backup person for ${r.name} must be different people.`); return; }
+    if (fe !== normEmail(r.focalEmail) || be !== normEmail(r.backupEmail)) items.push({ id: r.id, focalEmail: fe, backupEmail: be });
+  }
+  if (!items.length) { toast("No changes to save"); card.dataset.editing = ""; $("ct-note").textContent = ""; return; }
+  b.disabled = true;
+  try { const res = await rpc("admin_set_contacts", { p_items: items }); card.dataset.editing = ""; $("ct-note").textContent = ""; toast(`Saved — ${res && res.changed || items.length} territor${(res && res.changed) === 1 ? "y" : "ies"} updated`); await load(); }
+  catch (err) { toast(errMsg(err)); }
+  finally { b.disabled = false; }
+});
 $("acc-save").addEventListener("click", async () => {
   const card = $("access-card"), b = $("acc-save");
-  const cfg = { coordinators: splitEmails($("acc-coord").value), cwgLeads: {}, updatedAt: Date.now() };
+  const cfg = { ...accessCfg, coordinators: splitEmails($("acc-coord").value), otherAdmins: splitEmails($("acc-other").value), cwgLeads: {}, updatedAt: Date.now() };
   card.querySelectorAll("textarea[data-cwg]").forEach(ta => { cfg.cwgLeads[ta.dataset.cwg] = splitEmails(ta.value); });
   b.disabled = true;
-  try { await rpc("admin_set_access", { p_coordinators: cfg.coordinators, p_cwg_leads: cfg.cwgLeads }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Approved emails saved"); }
+  try { await rpc("admin_set_access", { p_coordinators: cfg.coordinators, p_cwg_leads: cfg.cwgLeads, p_other_admins: cfg.otherAdmins }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Admins saved"); }
   catch (err) { toast(errMsg(err)); }
   finally { b.disabled = false; }
 });
@@ -1613,7 +1651,7 @@ async function load() {
     loadedOnce = true;
     banner("");
     if (isEditor) {
-      try { const a = await rpc("admin_get_access"); accessCfg = { coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {} }; } catch (e) {}
+      try { const a = await rpc("admin_get_access"); accessCfg = { coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {}, otherAdmins: a.otherAdmins || [], contacts: a.contacts || [] }; } catch (e) {}
       try { downloadsLog = await rpc("admin_get_downloads", { p_limit: 200 }) || []; } catch (e) { downloadsLog = []; }
     }
     renderDownloads();
