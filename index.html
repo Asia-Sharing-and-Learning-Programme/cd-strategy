@@ -220,6 +220,14 @@
   .chip-picker { display: flex; gap: 6px; }
   .signin-warn { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; background: rgba(245,196,0,.14); border: 1px solid rgba(245,196,0,.55); }
   .signin-warn strong { font-weight: 700; }
+  .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .role-opt { display: flex; gap: 8px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; font-weight: 400; }
+  .role-opt input { margin-top: 3px; width: auto; flex: none; }
+  .role-opt span { text-align: left; }
+  .role-opt span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+  .role-opt small { color: var(--text-muted); font-size: 11.5px; line-height: 1.35; }
+  .role-opt:has(input:checked) { border-color: #f5c400; background: rgba(245,196,0,.12); }
+  @media (max-width: 480px) { .role-pick { grid-template-columns: 1fr; } }
   .office-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
   .office-row { display: grid; grid-template-columns: 1fr 92px 92px auto; gap: 6px; }
   @media (max-width: 520px) { .office-row { grid-template-columns: 1fr 1fr auto; } .office-row [data-o=name] { grid-column: 1 / -1; } }
@@ -253,7 +261,7 @@
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
       <div class="hdr-right">
-        <button id="auth-btn" class="small aslp-btn-yellow" title="For programme coordinators and CWG leads">Admin access</button>
+        <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in as an Admin or a CD Focal Person">Sign in</button>
         <button id="upd-btn" class="small aslp-btn">Update</button>
       </div>
     </div>
@@ -344,7 +352,7 @@
   <div id="view-admin" hidden>
       <section class="card" id="access-card" hidden>
         <h2 style="margin-bottom:4px">Admin access &amp; approved emails</h2>
-        <div class="muted" style="font-size:12px;line-height:1.6">Everyone listed here has <strong>admin access</strong>: they can sign in with "Admin access", manage this list, see contact details and emails, and edit or delete history entries. They can also update the CD Strategy details of territories (programme coordinators: all territories; CWG leads: their CWG's territories). Each territory's focal person (status and details) and backup person (status only) are registered in that territory's CD Strategy details. You can't remove your own email.</div>
+        <div class="muted" style="font-size:12px;line-height:1.6">Everyone listed here has <strong>admin access</strong>: they can sign in with "Sign in → Admin access", manage this list, see contact details and emails, and edit or delete history entries. They can also update the CD Strategy details of territories (programme coordinators: all territories; CWG leads: their CWG's territories). Each territory's focal person (status and details) and backup person (status only) are registered in that territory's CD Strategy details. You can't remove your own email.</div>
         <div class="access-grid">
           <div class="field"><label for="acc-coord">Programme coordinator email(s)</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
           <div id="acc-leads" style="display:contents"></div>
@@ -372,7 +380,7 @@
       <div id="step-0">
         <div class="field"><label for="f-email">Your registered email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div class="field" id="terr-pick" hidden><label for="f-terr">Territory</label><select id="f-terr"></select></div>
-        <div class="hint">Only registered people can update: each territory's <strong>focal person</strong> (status and CD Strategy details) and its <strong>backup person</strong> (status only). CWG leads and programme coordinators can update their territories too. Your email is recorded with every update.</div>
+        <div class="hint">Only registered people can update: each territory's <strong>focal person</strong> (status and CD Strategy details) and its <strong>backup person</strong> (status only). CWG leads and programme coordinators can update their territories too. To edit CD Strategy details you must be <strong>signed in</strong> first (Sign in → CD Focal Person or Admin). Your email is recorded with every update.</div>
       </div>
       <div id="step-1" hidden>
         <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select></div>
@@ -475,9 +483,15 @@
 <dialog id="adlg">
   <form id="adlg-form" method="dialog" novalidate>
     <div class="dlg-body">
-      <h3 id="adlg-title">Admin access</h3>
+      <h3 id="adlg-title">Sign in</h3>
       <div id="adlg-in">
-        <div class="muted" style="font-size:13px;margin-top:4px">For programme coordinators and CWG leads. We'll email you a sign-in link — you can open it on any device or browser. Territories don't need to sign in to record updates.</div>
+        <div class="field" style="margin-top:8px"><label>I am signing in as</label>
+          <div class="role-pick" role="radiogroup" aria-label="Sign in as">
+            <label class="role-opt"><input type="radio" name="a-role" value="admin"><span><strong>Admin</strong><small>Programme coordinators and CWG leads</small></span></label>
+            <label class="role-opt"><input type="radio" name="a-role" value="focal"><span><strong>CD Focal Person</strong><small>A territory's registered focal person</small></span></label>
+          </div>
+        </div>
+        <div class="muted" id="a-role-help" style="font-size:13px;margin-top:4px"></div>
         <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div class="signin-warn" id="adlg-limit"></div>
       </div>
@@ -930,7 +944,7 @@ function setStep(n) {
   const save = $("dlg-save"), skip = $("dlg-skip");
   save.disabled = false; skip.disabled = false;
   if (n === 0) { save.textContent = "Continue"; skip.hidden = true; setTimeout(() => $("f-email").focus(), 30); }
-  if (n === 1) { save.textContent = ed.role ? "Save status & continue" : "Save status"; skip.hidden = !ed.role; skip.textContent = "Skip to details"; }
+  if (n === 1) { save.textContent = (ed.role || ed.needsSignin) ? "Save status & continue" : "Save status"; skip.hidden = !(ed.role || ed.needsSignin); skip.textContent = "Skip to details"; }
   if (n === 2) {
     const t = ed.terr, role = ed.role;
     $("status-saved").hidden = !ed.statusSaved;
@@ -949,7 +963,9 @@ function setStep(n) {
       $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
     } else {
       $("details-form").hidden = true; $("details-locked").hidden = false;
-      $("details-locked").innerHTML = `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}As the backup person for ${esc(t.name)}, you can update the status only. The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.`;
+      $("details-locked").innerHTML = ed.needsSignin
+        ? `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}To edit the CD Strategy details of ${esc(t.name)}, please <strong>sign in first</strong>: close this box, click <strong>Sign in</strong>, choose <strong>${/coordinator|CWG lead/i.test(ed.statusRole || "") ? "Admin" : "CD Focal Person"}</strong> and open the link we email to ${esc(ed.email)}. Then click <strong>Update</strong> again.`
+        : `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}As the backup person for ${esc(t.name)}, you can update the status only. The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.`;
       save.textContent = "Finish"; skip.hidden = true;
     }
   }
@@ -960,7 +976,7 @@ function openDialog() {
   $("dlg-title").textContent = "Update a CD Strategy";
   $("dlg-current").textContent = "Enter your registered email to continue.";
   $("terr-pick").hidden = true; $("f-terr").innerHTML = "";
-  $("f-email").value = remembered; $("f-email").disabled = false;
+  $("f-email").value = viewer.email || remembered; $("f-email").disabled = false;
   $("f-date").value = todayISO();
   $("f-note").value = "";
   setStep(0);
@@ -968,7 +984,9 @@ function openDialog() {
 }
 function chooseTerritory(m) {
   const t = territories.find(x => x.id === m.id) || { id: m.id, name: m.name };
-  ed.terr = { ...t }; ed.role = m.canDetails ? m.role : null; ed.statusRole = m.role;
+  ed.terr = { ...t }; ed.statusRole = m.role;
+  ed.role = m.canDetails && signedInAs(ed.email) ? m.role : null;
+  ed.needsSignin = m.canDetails && !signedInAs(ed.email);
   $("dlg-title").textContent = t.name;
   const i = sIndex(t.status);
   $("dlg-current").textContent = `Verified as ${m.role}: ${ed.email} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
@@ -1019,7 +1037,7 @@ $("dlg-form").addEventListener("submit", async e => {
       await rpc("submit_status_update", { p_email: ed.email, p_territory: t.id, p_status: status, p_date: date, p_note: note });
       Object.assign(t, { status });
       ed.statusSaved = true;
-      if (ed.role) await goDetails(); else finishDialog();
+      if (ed.role || ed.needsSignin) await goDetails(); else finishDialog();
     } catch (err) { $("dlg-save").disabled = false; $("dlg-skip").disabled = false; $("dlg-err").textContent = writeErr(err); }
     return;
   }
@@ -1607,23 +1625,47 @@ async function load() {
 }
 function renderAuth() {
   const b = $("auth-btn");
-  b.textContent = viewer.email ? (isEditor ? `Admin: ${viewer.email}` : `Signed in: ${viewer.email}`) : "Admin access";
+  b.textContent = viewer.email ? (isEditor ? "Signed in · Admin" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
+  b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in as an Admin or a CD Focal Person";
   $("tab-admin").hidden = !isEditor;
 }
 $("auth-btn").addEventListener("click", () => {
   const signedIn = !!viewer.email;
   $("adlg-in").hidden = signedIn; $("adlg-sent").hidden = true; $("adlg-err").textContent = "";
   $("adlg-out").hidden = !signedIn;
-  $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>${isEditor ? ` (${esc(viewer.role || "admin")}). Open the <a href="#admin" id="go-admin">Admin</a> tab to manage approved emails.` : ". This email doesn't have admin access yet — ask a programme coordinator to add it in the Admin tab."}</div>` : "";
+  const focalNames = (viewer.focal_of || []).map(id => (territories.find(x => x.id === id) || { name: id }).name);
+  $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>.</div><ul style="margin:8px 0 0 18px;padding:0;font-size:13px;line-height:1.6">`
+    + (isEditor ? `<li><strong>Admin</strong> (${esc(viewer.role || "admin")}) — open the <a href="#admin" id="go-admin">Admin</a> tab to manage who can sign in.</li>` : "")
+    + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
+    + (!isEditor && !focalNames.length ? `<li>This email isn't registered as an Admin or a CD Focal Person. Ask a programme coordinator to register it.</li>` : "")
+    + `</ul>` : "";
+  $("adlg-title").textContent = signedIn ? "Signed in" : "Sign in";
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
-  if (!signedIn) renderSigninLimit();
+  if (!signedIn) {
+    let r = ""; try { r = localStorage.getItem("cd-signin-role") || ""; } catch (e) {}
+    document.querySelectorAll('input[name="a-role"]').forEach(x => { x.checked = x.value === r; });
+    renderRoleHelp(); renderSigninLimit();
+  }
   $("adlg").showModal();
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
 $("adlg-cancel").addEventListener("click", () => $("adlg").close());
 // Sign-in link limits (Supabase email sending). Update SIGNIN_PER_HOUR if the email provider changes.
 const SIGNIN_PER_HOUR = 2, SIGNIN_COOLDOWN_S = 60;
+const isFocalViewer = () => !!(viewer.email && (viewer.focal_of || []).length);
+const signedInAs = email => !!viewer.email && normEmail(viewer.email) === normEmail(email);
+function selectedRole() { const r = document.querySelector('input[name="a-role"]:checked'); return r ? r.value : ""; }
+function renderRoleHelp() {
+  const r = selectedRole();
+  $("a-role-help").innerHTML = r === "admin"
+    ? "For programme coordinators and CWG leads. Admins can see contact details, edit or delete history entries, and manage who can sign in (Admin tab)."
+    : r === "focal"
+    ? "For each territory's registered CD focal person. Once signed in, you can update your territory's status <em>and</em> CD Strategy details, and see its contact details. Backup persons don't need to sign in — they update the status with the Update button."
+    : "Choose how you are signing in.";
+  $("a-email").placeholder = r === "focal" ? "your registered focal person email" : "name@salvationarmy.org";
+}
+document.querySelectorAll('input[name="a-role"]').forEach(x => x.addEventListener("change", () => { try { localStorage.setItem("cd-signin-role", x.value); } catch (e) {} $("adlg-err").textContent = ""; renderRoleHelp(); }));
 function signinTimes() {
   try { return (JSON.parse(localStorage.getItem("cd-signin-times") || "[]") || []).filter(x => Date.now() - x < 3600_000); } catch (e) { return []; }
 }
@@ -1632,7 +1674,7 @@ let signinTimer = null;
 function renderSigninLimit() {
   const times = signinTimes(), used = times.length, left = Math.max(0, SIGNIN_PER_HOUR - used);
   const last = times.length ? Math.max(...times) : 0, wait = Math.ceil((last + SIGNIN_COOLDOWN_S * 1000 - Date.now()) / 1000);
-  let html = `<strong>Limit: ${SIGNIN_PER_HOUR} sign-in emails per hour</strong> for the whole site (shared by all admins). Each link works once and expires after 1 hour. Check your spam folder before asking for another.`;
+  let html = `<strong>Limit: ${SIGNIN_PER_HOUR} sign-in emails per hour</strong> for the whole site (shared by everyone signing in). Each link works once and expires after 1 hour. Check your spam folder before asking for another.`;
   if (used) html += `<br>From this browser: <strong>${used} of ${SIGNIN_PER_HOUR}</strong> used in the last hour${left ? ` — ${left} left` : ` — please wait until ${new Date(Math.min(...times) + 3600_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}.`;
   $("adlg-limit").innerHTML = html;
   clearTimeout(signinTimer);
@@ -1645,7 +1687,19 @@ $("adlg-form").addEventListener("submit", async e => {
   e.preventDefault();
   if (viewer.email) { await db.auth.signOut(); $("adlg").close(); viewer = { email: "", is_coordinator: false }; await load(); toast("Signed out"); return; }
   const email = $("a-email").value.trim();
+  const role = selectedRole();
+  if (!role) { $("adlg-err").textContent = "Please choose whether you are signing in as an Admin or a CD Focal Person."; return; }
   if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
+  $("adlg-go").disabled = true;
+  let ok = false;
+  try { ok = await rpc("check_signin", { p_email: email, p_role: role }); } catch (e2) { $("adlg-go").disabled = false; $("adlg-err").textContent = errMsg(e2); return; }
+  $("adlg-go").disabled = false;
+  if (!ok) {
+    $("adlg-err").textContent = role === "admin"
+      ? "This email isn't on the Admin list. No sign-in email was sent. Ask a programme coordinator to add you in the Admin tab."
+      : "This email isn't registered as a territory's CD focal person. No sign-in email was sent. Check the email, or ask your programme coordinator or CWG lead to register you in your territory's CD Strategy details.";
+    return;
+  }
   if (signinTimes().length >= SIGNIN_PER_HOUR && !confirm(`You've already requested ${SIGNIN_PER_HOUR} sign-in links in the last hour, so this one will probably be blocked. The latest link in your inbox may still work. Try anyway?`)) return;
   $("adlg-go").disabled = true; $("adlg-err").textContent = "";
   const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
