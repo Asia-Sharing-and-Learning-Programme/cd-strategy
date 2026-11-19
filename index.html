@@ -197,6 +197,10 @@
   .map { height: 480px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-0); z-index: 0; }
   .map .leaflet-tile-pane { filter: grayscale(.65) brightness(1.04) contrast(.92); }
   .map.map-dark .leaflet-tile-pane { filter: grayscale(.8) invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+  .terr-pin { background: none; border: 0; }
+  .terr-pin svg { display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); transition: transform .12s; transform-origin: 50% 100%; cursor: pointer; }
+  .terr-pin:hover svg, .terr-pin:focus svg { transform: scale(1.18); }
+  .map-legend svg { filter: drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
   .map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
   .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
   .map-legend i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15); display: inline-block; }
@@ -280,7 +284,7 @@
     </div>
     <div id="map" class="map" role="region" aria-label="Map of territories coloured by CD Strategy status"></div>
     <div class="map-legend" id="map-legend"></div>
-    <div class="muted" style="font-size:12px;margin-top:8px">Each dot is a territory's headquarters, coloured by CD Strategy status. Hover for details and click a dot to open its update history. The zone/CWG buttons and status filters above also apply to the map.</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">Each pin is a territory's headquarters, coloured by CD Strategy status. Hover for details and click a pin to open its update history. The zone/CWG buttons and status filters above also apply to the map.</div>
   </section>
   </div>
 
@@ -700,7 +704,17 @@ function ensureMap() {
   markerLayer = L.layerGroup().addTo(map);
   map.on("click focus", () => map.scrollWheelZoom.enable());
   map.on("mouseout", () => map.scrollWheelZoom.disable());
-  $("map-legend").innerHTML = STATUSES.map((st, i) => `<span><i style="background:${MAP_HEX[i]}"></i>${esc(SHORT[i])}</span>`).join("");
+  $("map-legend").innerHTML = STATUSES.map((st, i) => `<span>${pinSvg(MAP_HEX[i], 12)}${esc(SHORT[i])}</span>`).join("");
+}
+function pinSvg(color, w = 26) {
+  const h = Math.round(w * 36 / 26);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 26 36" aria-hidden="true">
+    <path d="M13 1C6.4 1 1 6.3 1 12.9c0 8.6 10.4 20.6 11.2 21.5a1 1 0 0 0 1.6 0C14.6 33.5 25 21.5 25 12.9 25 6.3 19.6 1 13 1z" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="13" cy="13" r="4.6" fill="#ffffff"/></svg>`;
+}
+const pinCache = {};
+function pinIcon(color) {
+  return pinCache[color] || (pinCache[color] = L.divIcon({ className: "terr-pin", html: pinSvg(color), iconSize: [26, 36], iconAnchor: [13, 35], tooltipAnchor: [0, 0] }));
 }
 function renderMap() {
   ensureMap();
@@ -711,11 +725,11 @@ function renderMap() {
   list.forEach(t => {
     if (typeof t.lat !== "number" || typeof t.lng !== "number") return;
     const i = sIndex(t.status);
-    const mk = L.circleMarker([t.lat, t.lng], { radius: 9, weight: 2, color: "#ffffff", fillColor: MAP_HEX[i] || "#888888", fillOpacity: 0.95 });
+    const mk = L.marker([t.lat, t.lng], { icon: pinIcon(MAP_HEX[i] || "#888888"), title: t.name, riseOnHover: true, keyboard: true });
     mk.bindTooltip(`<strong>${esc(t.name)}</strong><br>${i >= 0 ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${MAP_HEX[i]};margin-right:5px"></span>${esc(STATUSES[i].label)}` : ""}`
       + `<br><span style="color:#666">${esc(zoneLabel(zoneOf(t)))} · ${esc(cwgOf(t))}</span>`
       + (t.location ? `<br><span style="color:#666">${esc(t.location)}</span>` : "")
-      + (targetOf(t) ? `<br><span style="color:#666">Target: ${esc(targetOf(t))}</span>` : ""), { direction: "top", offset: [0, -8], className: "terr-tip" });
+      + (targetOf(t) ? `<br><span style="color:#666">Target: ${esc(targetOf(t))}</span>` : ""), { direction: "top", offset: [0, -34], className: "terr-tip" });
     mk.on("click", () => openTerritory(t.id));
     mk.addTo(markerLayer);
     pts.push([t.lat, t.lng]);
