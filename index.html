@@ -532,6 +532,8 @@ const sColor = i => `var(--s${i})`;
 const SUPABASE_URL = "https://emvtqqjiirgcgghcaeps.supabase.co";
 const SUPABASE_KEY = "sb_publishable_cHpOvFlPWmirE_426PPIbg_XYo-klC9";
 let db = null, canWrite = true, viewer = { email: "", is_coordinator: false };
+let myTerrs = [];   // territories the signed-in person may edit (status + details)
+const canEditTerr = id => !!viewer.email && myTerrs.some(m => m.id === id && m.canDetails);
 let territories = [];   // [{id, ...data}]
 let logs = [];          // [{id, ...data}]
 let statusFilter = null;
@@ -978,7 +980,7 @@ function setStep(n) {
     }
   }
 }
-function openDialog() {
+function openDialog(terrId) {
   let remembered = ""; try { remembered = sessionStorage.getItem("cd-email") || ""; } catch (e) {}
   ed = { terr: null, email: "", mine: null, step: 0, statusSaved: false, detailsSaved: false, newLogs: [] };
   $("dlg-title").textContent = "Update a CD Strategy";
@@ -987,6 +989,20 @@ function openDialog() {
   $("f-email").value = viewer.email || remembered; $("f-email").disabled = false;
   $("f-date").value = todayISO();
   $("f-note").value = "";
+  // Signed in (Admin or CD Focal Person): no need to re-enter the email — go straight to the territory.
+  const mine = viewer.email ? myTerrs.filter(m => m.canDetails) : [];
+  if (mine.length) {
+    ed.email = normEmail(viewer.email); ed.mine = mine;
+    const pick = (terrId && mine.find(m => m.id === terrId)) || (!terrId && detailId && mine.find(m => m.id === detailId)) || (mine.length === 1 ? mine[0] : null);
+    if (pick) { chooseTerritory(pick); setStep(1); $("dlg").showModal(); return; }
+    setStep(0);
+    $("f-email").disabled = true;
+    $("f-terr").innerHTML = `<option value="">— Choose a territory —</option>` + mine.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+    $("terr-pick").hidden = false;
+    $("dlg-current").textContent = `Signed in as ${ed.email} — choose which territory to update.`;
+    $("dlg").showModal(); setTimeout(() => $("f-terr").focus(), 30);
+    return;
+  }
   setStep(0);
   $("dlg").showModal();
 }
@@ -997,7 +1013,7 @@ function chooseTerritory(m) {
   ed.needsSignin = m.canDetails && !signedInAs(ed.email);
   $("dlg-title").textContent = t.name;
   const i = sIndex(t.status);
-  $("dlg-current").textContent = `Verified as ${m.role}: ${ed.email} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
+  $("dlg-current").textContent = `${signedInAs(ed.email) ? "Signed in" : "Verified"} as ${m.role}: ${ed.email} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
   $("f-status").value = t.status || STATUSES[0].key;
 }
 $("upd-btn").addEventListener("click", () => { if (db) openDialog(); });
@@ -1161,7 +1177,7 @@ function renderDatabase() {
     const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
     return (c || String(a.name).localeCompare(String(b.name))) * dbSort.dir;
   });
-  const upd = false;
+  const upd = myTerrs.some(m => m.canDetails) && !!viewer.email;
   $("db-head").innerHTML = `<tr>${cols.map(([k, h]) => `<th class="sortable${k === "updates" ? " num" : ""}" data-k="${k}">${esc(h)}${dbSort.key === k ? `<span class="dir">${dbSort.dir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("")}${upd ? "<th></th>" : ""}</tr>`;
   $("db-head").querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
     const k = th.dataset.k; if (dbSort.key === k) dbSort.dir *= -1; else { dbSort.key = k; dbSort.dir = 1; } renderDatabase();
@@ -1173,7 +1189,7 @@ function renderDatabase() {
   const rowHtml = r => `<tr class="clickable" data-tid="${esc(r.id)}" tabindex="0">
       <td><a class="tname" href="#territory-${esc(r.id)}">${esc(r.name)}</a></td><td>${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td><td class="nowrap">${esc(targetOf(r))}</td>
       <td>${badge(r.status)}</td><td class="nowrap">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td><td class="num">${r.updates}</td>
-      ${upd ? `<td style="text-align:right"><button class="small primary" data-upd="${esc(r.id)}">Update</button></td>` : ""}</tr>`;
+      ${upd ? `<td style="text-align:right">${canEditTerr(r.id) ? `<button class="small aslp-btn" data-upd="${esc(r.id)}">Edit</button>` : ""}</td>` : ""}</tr>`;
   let lastZone = null;
   $("db-body").innerHTML = groups.map(g => {
     const gr = rows.filter(r => cwgOf(r) === g), z = zoneOfCwg(g);
@@ -1265,7 +1281,7 @@ function renderDetail() {
   if (!t) { card.innerHTML = `<div class="muted">This territory wasn't found.</div>`; $("log-list").innerHTML = ""; $("td-count").textContent = ""; return; }
   card.innerHTML = `<div class="td-head">
       <div><h2>${esc(t.name)}</h2>${badge(t.status)}</div>
-
+      ${canEditTerr(t.id) ? `<button class="small aslp-btn" id="td-edit">Edit status &amp; details</button>` : ""}
     </div>
     <div class="td-facts">
       <div><div class="k">Zone · CWG</div><div class="v">${esc(zoneOf(t) === "OTHER" ? cwgOf(t) : zoneLabel(zoneOf(t)) + " · " + cwgOf(t))}</div></div>
@@ -1280,6 +1296,7 @@ function renderDetail() {
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
     </div>`;
+  const te = $("td-edit"); if (te) te.addEventListener("click", () => openDialog(t.id));
   renderMiniMap(t);
 
 }
@@ -1648,6 +1665,7 @@ async function load() {
     logs = d.log || [];
     viewer = d.viewer || viewer;
     isEditor = !!viewer.is_coordinator;
+    if (viewer.email) { try { myTerrs = await rpc("get_my_territories", { p_email: viewer.email }) || []; } catch (e) { myTerrs = []; } } else myTerrs = [];
     loadedOnce = true;
     banner("");
     if (isEditor) {
