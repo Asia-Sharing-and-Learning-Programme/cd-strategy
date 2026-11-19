@@ -1369,7 +1369,7 @@ async function buildPDF() {
   doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territories", M, y);
   y += 3;
   const rows = sortedTerr(viewTerr());
-  const cols = [["Territory", 44], ["CWG", 26], ["Focal person", 38], ["Target", 16], ["Status", 38], ["Last updated", 20]];
+  const cols = [["Territory", 64], ["CWG", 17], ["Focal person", 34], ["Target", 15], ["Status", 33], ["Last updated", 19]];
   const avail = 285 - y;
   const rh = Math.min(6.2, avail / (rows.length + 1));
   const fs = rh < 5 ? 6.2 : 7.2;
@@ -1388,8 +1388,13 @@ async function buildPDF() {
       doc.setTextColor(...(ci === 0 ? ink : sub)); doc.setFont("helvetica", ci === 0 ? "bold" : "normal");
       let tx2 = xx + 2;
       if (ci === 4 && i >= 0) { doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(xx + 2, y + rh / 2 - 1.4, 2.8, 2.8, 0.5, 0.5, "F"); tx2 += 4.2; doc.setTextColor(...ink); }
-      const txt = doc.splitTextToSize(pdfSafe(v), w - (tx2 - xx) - 1)[0] || "";
-      doc.text(txt, tx2, y + rh / 2 + 1.1);
+      let lines = doc.splitTextToSize(pdfSafe(v), w - (tx2 - xx) - 1);
+      if (ci === 0 && lines.length > 1) {   // long territory names: two smaller lines, never cut short
+        const prev = doc.getFontSize(); doc.setFontSize(Math.min(prev, 5.8));
+        lines = doc.splitTextToSize(pdfSafe(v), w - (tx2 - xx) - 1).slice(0, 2);
+        doc.text(lines, tx2, y + rh / 2 - (lines.length - 1) * 1.1 + 0.9);
+        doc.setFontSize(prev);
+      } else doc.text(lines[0] || "", tx2, y + rh / 2 + 1.1);
       xx += w;
     });
     y += rh;
