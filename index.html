@@ -167,7 +167,15 @@
   .mini-lock .cl-zone { color: var(--cwg-b); } .mini-lock .cl-num { color: var(--cwg-a); margin-left: 1px; }
   .cwg-pills button.branded { border-color: color-mix(in srgb, var(--cwg-a) 55%, transparent); background: color-mix(in srgb, var(--cwg-a) 8%, var(--surface-1)); }
   .cwg-pills button.branded .mini-lock { font-size: 13.5px; }
-  .cwg-pills button.zone-pill { color: var(--cwg-b); font-weight: 600; }
+  .cwg-pills button.zone-pill { color: var(--text-primary); font-weight: 500; display: inline-flex; align-items: baseline; gap: 6px; }
+  .cwg-pills button.zone-pill .mini-lock { font-size: 14px; }
+  .cwg-pills button.zone-pill .zp-sub { font-size: 10.5px; letter-spacing: .6px; }
+  .cwg-pills button.zone-pill.on .zp-sub { color: #fff; }
+  .zone-lock { display: inline-flex; flex-direction: column; line-height: 1; vertical-align: middle; font-family: "Helvetica Neue", Arial, sans-serif; }
+  .zone-lock .zl-name { color: var(--cwg-b); font-weight: 900; letter-spacing: -1.5px; }
+  .zone-lock .zl-sub { color: var(--text-primary); font-weight: 400; text-transform: none; white-space: nowrap; }
+  .zone-lock.zl-lg .zl-name { font-size: 30px; } .zone-lock.zl-lg .zl-sub { font-size: 9.5px; letter-spacing: 2.6px; margin-top: 2px; }
+  .zone-lock.zl-md .zl-name { font-size: 19px; letter-spacing: -1px; } .zone-lock.zl-md .zl-sub { font-size: 7.5px; letter-spacing: 1.6px; margin-top: 2px; }
   .cwg-pills button.branded.on { background: var(--cwg-a); border-color: var(--cwg-a); color: #fff; }
   .cwg-pills button.zone-pill.on { background: var(--cwg-b); border-color: var(--cwg-b); }
   .cwg-pills button.branded.on .cl-zone, .cwg-pills button.branded.on .cl-num { color: #fff; }
@@ -191,8 +199,8 @@
   :root { --spea: #1a5cba; --sasia: #e24a1b; --spea1: #188afd; --spea2: #2e6be0; --sasia1: #fe6809; --sasia2: #ff8228; }
   :root[data-theme="dark"] { --spea: #5b93e6; --sasia: #f0703f; --spea2: #5a8ef0; }
   @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --spea: #5b93e6; --sasia: #f0703f; --spea2: #5a8ef0; } }
-  tr.zone-group.z-SPEA td { color: var(--spea); box-shadow: inset 4px 0 0 var(--spea); }
-  tr.zone-group.z-SASIA td { color: var(--sasia); box-shadow: inset 4px 0 0 var(--sasia); }
+  tr.zone-group.z-SPEA td { color: var(--spea); box-shadow: inset 4px 0 0 var(--spea); padding-top: 12px; padding-bottom: 10px; }
+  tr.zone-group.z-SASIA td { color: var(--sasia); box-shadow: inset 4px 0 0 var(--sasia); padding-top: 12px; padding-bottom: 10px; }
   tr.group-row.cwg-branded td { background: color-mix(in srgb, var(--cwg-a) 9%, var(--surface-0)); box-shadow: inset 4px 0 0 var(--cwg-a); padding-top: 10px; padding-bottom: 10px; }
   .cwg-lock { display: inline-flex; align-items: stretch; gap: 0; line-height: 1; margin-right: 16px; vertical-align: middle; font-family: "Helvetica Neue", Arial, sans-serif; }
   .cwg-lock .cl-zone { color: var(--cwg-b); font-weight: 900; font-size: 26px; letter-spacing: -1.5px; }
@@ -574,6 +582,12 @@ let db = null, canWrite = true, viewer = { email: "", is_coordinator: false };
 let myTerrs = [];
 let cwgLeadInfo = [];   // public: [{cwg, name, role, territory}]
 const terrName = id => (territories.find(x => x.id === id) || {}).name || "";
+// Zone lockup (from the ASLP zonal logos, without the ASLP mark): big "SPEA"/"SASIA" with the zone name spaced out underneath
+const ZONE_SUB = { SPEA: "South Pacific East Asia Zones", SASIA: "South Asia Zones" };
+function zoneLockup(z, size) {
+  if (!ZONE_SUB[z]) return "";
+  return `<span class="zone-lock zl-${size || "md"}" role="img" aria-label="${esc(zoneLabel(z))}" style="--cwg-b: var(--${z.toLowerCase()})"><span class="zl-name">${z}</span><span class="zl-sub">${ZONE_SUB[z]}</span></span>`;
+}
 // CWG lockup: "SPEA" + number + stacked "Cluster Working Group", in each CWG's brand colours
 function cwgParts(c) { const m = String(c || "").trim().match(/^(SPEA|SASIA)\s*(\d)$/i); return m ? { zone: m[1].toUpperCase(), num: m[2] } : null; }
 function cwgVars(c) { const p = cwgParts(c); return p ? `--cwg-b: var(--${p.zone.toLowerCase()}); --cwg-a: var(--${p.zone.toLowerCase()}${p.num});` : ""; }
@@ -685,8 +699,8 @@ function renderCwgBar() {
   const btn = (v, label) => {
     const p = cwgParts(v), z = v.startsWith("zone:") ? v.slice(5) : "";
     const brand = p ? ` branded" style="${cwgVars(v)}` : (z === "SPEA" || z === "SASIA") ? ` branded zone-pill" style="--cwg-b: var(--${z.toLowerCase()}); --cwg-a: var(--${z.toLowerCase()});` : "";
-    const inner = p ? `<span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>` : esc(label);
-    return `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}${brand}" ${p ? `aria-label="${esc(p.zone + " " + p.num)} Cluster Working Group"` : ""}>${inner}</button>`;
+    const inner = p ? `<span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>` : (z === "SPEA" || z === "SASIA") ? `<span class="mini-lock"><span class="cl-zone">${z}</span></span><span class="zp-sub">${ZONE_SUB[z]}</span>` : esc(label);
+    return `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}${brand}" ${p ? `aria-label="${esc(p.zone + " " + p.num)} Cluster Working Group"` : z ? `aria-label="${esc(zoneLabel(z))}"` : ""}>${inner}</button>`;
   };
   const el = $("cwg-pills");
   el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span>` + (z !== "OTHER" ? btn("zone:" + z, zoneLabel(z)) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("")).join("");
@@ -706,7 +720,7 @@ function renderCwgMatrix() {
       <td><div class="stack" title="${esc(STATUSES.map((st, i) => `${SHORT[i]}: ${cc[i]}`).join(" · "))}">${cc.map((v, i) => v ? `<span style="width:${v / n * 100}%;background:${sColor(i)}"></span>` : "").join("")}</div></td></tr>`;
   };
   $("cwgm-body").innerHTML = zl.map(z =>
-    (z !== "OTHER" ? row("zone:" + z, `<strong>${esc(zoneLabel(z))}</strong>`, territories.filter(t => zoneOf(t) === z), "zone-row") : "") +
+    (z !== "OTHER" ? row("zone:" + z, zoneLockup(z, "md") || `<strong>${esc(zoneLabel(z))}</strong>`, territories.filter(t => zoneOf(t) === z), "zone-row") : "") +
     cl.filter(c => zoneOfCwg(c) === z).map(c => row(c, `<span class="indent">${cwgParts(c) ? `<span class="mini-lock" title="${esc(c)} Cluster Working Group"><span class="cl-zone">${cwgParts(c).zone}</span><span class="cl-num">${cwgParts(c).num}</span></span>` : esc(c)}</span>`, territories.filter(t => cwgOf(t) === c), "")).join("")
   ).join("");
   const all = counts(territories);
@@ -1297,7 +1311,7 @@ function renderDatabase() {
   $("db-body").innerHTML = groups.map(g => {
     const gr = rows.filter(r => cwgOf(r) === g), z = zoneOfCwg(g);
     let head = "";
-    if (z !== lastZone) { lastZone = z; head = `<tr class="zone-group z-${esc(z)}"><td colspan="${ncol}">${esc(zoneLabel(z))}</td></tr>`; }
+    if (z !== lastZone) { lastZone = z; head = `<tr class="zone-group z-${esc(z)}"><td colspan="${ncol}">${zoneLockup(z, "lg") || esc(zoneLabel(z))}</td></tr>`; }
     const lock = cwgLockup(g);
     return head + (lock
       ? `<tr class="group-row cwg-branded" style="${cwgVars(g)}"><td colspan="${ncol}">${lock}<span class="cwg-count">${gr.length} territor${gr.length === 1 ? "y" : "ies"}</span>${leadLine(g)}</td></tr>`
