@@ -403,13 +403,13 @@
             <datalist id="country-options"></datalist>
             <div class="country-chips" id="f-countries"></div>
           </div>
-          <div class="field"><label for="f-loc">Territorial Headquarters (THQ)</label><input type="text" id="f-loc" maxlength="120" placeholder="e.g. Malate, Manila, Philippines"></div>
+          <div class="field"><label for="f-loc" id="f-loc-label">Territorial Headquarters (THQ)</label><input type="text" id="f-loc" maxlength="120" placeholder="e.g. Malate, Manila, Philippines"></div>
           <div class="two">
             <div class="field"><label for="f-lat">Latitude</label><input type="text" id="f-lat" inputmode="decimal" maxlength="20" placeholder="e.g. 14.5650"></div>
             <div class="field"><label for="f-lng">Longitude</label><input type="text" id="f-lng" inputmode="decimal" maxlength="20" placeholder="e.g. 120.9900"></div>
           </div>
           <div class="hint" style="margin-top:4px">Tip: in Google Maps, right-click the headquarters and click the numbers shown at the top to copy them. Paste them into Latitude — both boxes fill in automatically.</div>
-          <div class="field"><label>Regional / national offices <span class="muted" style="font-weight:400">(optional, e.g. Regional Headquarters, India National Office)</span></label>
+          <div class="field"><label>Regional / divisional / national offices <span class="muted" style="font-weight:400">(optional, e.g. Divisional or Regional Headquarters, India National Office)</span></label>
             <div id="f-offices" class="office-rows"></div>
             <div><button type="button" class="small" id="f-office-add">+ Add office</button></div>
           </div>
@@ -783,7 +783,7 @@ function renderMap() {
     const mk = L.marker([t.lat, t.lng], { icon: pinIcon(MAP_HEX[i] || "#888888"), title: t.name, riseOnHover: true, keyboard: true });
     mk.bindTooltip(`<strong>${esc(t.name)}</strong><br>${i >= 0 ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${MAP_HEX[i]};margin-right:5px"></span>${esc(STATUSES[i].label)}` : ""}`
       + `<br><span style="color:#666">${esc(zoneLabel(zoneOf(t)))} · ${esc(cwgOf(t))}</span>`
-      + (t.location ? `<br><span style="color:#666">THQ: ${esc(t.location)}</span>` : "")
+      + (t.location ? `<br><span style="color:#666">${hqAbbr(t)}: ${esc(t.location)}</span>` : "")
       + (targetOf(t) ? `<br><span style="color:#666">Target: ${esc(targetOf(t))}</span>` : ""), { direction: "top", offset: [0, -34], className: "terr-tip" });
     mk.on("click", () => openTerritory(t.id));
     mk.addTo(markerLayer);
@@ -842,10 +842,13 @@ async function resolveNames() {}
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
   ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
-  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Territorial Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
+  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
 ];
 const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
+const isRegion = t => /\bregion$/i.test(String(t && t.name || "").trim());
+const hqLabel = t => isRegion(t) ? "Regional Headquarters" : "Territorial Headquarters";
+const hqAbbr = t => isRegion(t) ? "RHQ" : "THQ";
 const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "").trim());
 const splitEmails = txt => [...new Set(String(txt || "").split(/[\s,;]+/).map(normEmail).filter(validEmail))];
 let accessCfg = { coordinators: [], cwgLeads: {} };
@@ -934,6 +937,7 @@ function setStep(n) {
       DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] ?? ""); });
       periodToSelects(t.strategyPeriod);
       editCountries = [...(t.countries || [])]; renderCountryPicker();
+      $("f-loc-label").textContent = `${hqLabel(t)} (${hqAbbr(t)})`;
       editOffices = (t.offices || []).map(o => ({ name: o.name || "", lat: o.lat ?? "", lng: o.lng ?? "" })); renderOfficeRows();
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
@@ -1025,7 +1029,7 @@ $("dlg-form").addEventListener("submit", async e => {
     readOfficeRows();
     const offices = editOffices.map(o => ({ name: String(o.name).trim(), lat: String(o.lat).trim(), lng: String(o.lng).trim() })).filter(o => o.name || o.lat || o.lng);
     if (offices.some(o => !o.name)) { $("dlg-err").textContent = "Please give each office a name (or remove the empty row)."; return; }
-    for (const [la, lo, what] of [[$("f-lat").value.trim(), $("f-lng").value.trim(), "Territorial Headquarters"], ...offices.map(o => [o.lat, o.lng, `"${o.name}"`])]) {
+    for (const [la, lo, what] of [[$("f-lat").value.trim(), $("f-lng").value.trim(), hqLabel(t)], ...offices.map(o => [o.lat, o.lng, `"${o.name}"`])]) {
       if ((la === "") !== (lo === "")) { $("dlg-err").textContent = `Please give both latitude and longitude for the ${what}, or leave both empty.`; return; }
       if (la !== "" && (isNaN(+la) || isNaN(+lo) || Math.abs(+la) > 90 || Math.abs(+lo) > 180)) { $("dlg-err").textContent = `The ${what} latitude must be between -90 and 90, and longitude between -180 and 180.`; return; }
     }
@@ -1147,7 +1151,7 @@ async function renderMiniMap(t) {
   $("td-countries").innerHTML = chips.length ? chips.map(c => `<span class="country-chip">${esc(c)}</span>`).join("") : '<span class="muted" style="font-size:12px">No countries recorded yet.</span>';
   $("td-geo-count").textContent = chips.length ? `${chips.length} countr${chips.length === 1 ? "y" : "ies"}` : "";
   const i = sIndex(t.status), color = MAP_HEX[i] || "#888888";
-  $("mini-key").innerHTML = `<span>${pinSvg(color, 12)}Territorial Headquarters</span>${(t.offices || []).length ? `<span><svg width="12" height="12" viewBox="0 0 22 22"><rect x="3" y="3" width="16" height="16" rx="3" transform="rotate(45 11 11)" fill="#24215f"/></svg>${(t.offices || []).length > 1 ? "Regional / national offices" : esc(t.offices[0].name)}</span>` : ""}<span><i style="display:inline-block;width:12px;height:10px;border-radius:2px;background:${color};opacity:.45;border:1px solid ${color}"></i>Countries in the territory</span>`;
+  $("mini-key").innerHTML = `<span>${pinSvg(color, 12)}${hqLabel(t)}</span>${(t.offices || []).length ? `<span><svg width="12" height="12" viewBox="0 0 22 22"><rect x="3" y="3" width="16" height="16" rx="3" transform="rotate(45 11 11)" fill="#24215f"/></svg>${(t.offices || []).length > 1 ? "Regional / divisional / national offices" : esc(t.offices[0].name)}</span>` : ""}<span><i style="display:inline-block;width:12px;height:10px;border-radius:2px;background:${color};opacity:.45;border:1px solid ${color}"></i>Countries in the ${isRegion(t) ? "region" : "territory"}</span>`;
   if (!window.L || $("db-detail").hidden) return;
   if (!miniMap) {
     miniMap = L.map("mini-map", { scrollWheelZoom: false, zoomSnap: 0.25, worldCopyJump: false });
@@ -1184,7 +1188,7 @@ async function renderMiniMap(t) {
   const sh = lng => (shift && lng < 0 ? lng + 360 : lng);
   if (typeof t.lat === "number" && typeof t.lng === "number") {
     L.marker([t.lat, sh(t.lng)], { icon: pinIcon(color), title: t.name, zIndexOffset: 1000 })
-      .bindTooltip(`<strong>Territorial Headquarters</strong>${t.location ? `<br>${esc(t.location)}` : ""}`, { direction: "top", offset: [0, -34], className: "terr-tip" }).addTo(miniLayer);
+      .bindTooltip(`<strong>${hqLabel(t)}</strong>${t.location ? `<br>${esc(t.location)}` : ""}`, { direction: "top", offset: [0, -34], className: "terr-tip" }).addTo(miniLayer);
     pts.push(L.latLng(t.lat, sh(t.lng)));
   }
   for (const o of (t.offices || [])) {
@@ -1211,8 +1215,8 @@ function renderDetail() {
       ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
       ${t.status === "implementing" ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
-      <div><div class="k">Territorial Headquarters</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
-      ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / national offices" : "Regional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
+      <div><div class="k">${hqLabel(t)}</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
+      ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / divisional / national offices" : "Regional / divisional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
@@ -1469,12 +1473,12 @@ async function buildXLSX(downloader = "") {
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
-    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Territorial Headquarters", key: "loc", width: 30 }, { header: "THQ latitude", key: "lat", width: 11 }, { header: "THQ longitude", key: "lng", width: 11 }, { header: "Regional / national offices", key: "office", width: 44 },
+    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
     r.getCell("last").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
