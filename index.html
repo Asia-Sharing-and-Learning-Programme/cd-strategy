@@ -188,6 +188,9 @@
   .access-grid textarea { min-height: 70px; }
   .site-foot { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.8; }
   .foot-sync { color: var(--text-muted); font-size: 11px; }
+  .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; letter-spacing: .02em; padding: 7px 22px; border-radius: 999px; font-size: 14px; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+  .aslp-btn:hover { background: #c0391e; border-color: #c0391e; }
+  .dl-group { align-items: center; }
   .hdr-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .dl-group { display: flex; gap: 6px; }
   .dl-group[hidden] { display: none; }
@@ -203,10 +206,11 @@
   <header>
     <div>
       <h1>Community Development Strategies</h1>
-      <div class="sub">Territory progress on Community Development Strategies across South Pacific and East Asia (SPEA) and South Asia (SASIA). Updates are recorded in the Database tab and appear here for everyone.</div>
+      <div class="sub">Territory progress on Community Development Strategies across South Pacific and East Asia (SPEA) and South Asia (SASIA). Registered focal and backup persons record updates with the Update button.</div>
     </div>
     <div class="hdr-actions">
       <div class="dl-group">
+        <button id="upd-btn" class="aslp-btn">Update</button>
         <button id="dl-pdf" class="small primary" title="One-page PDF of the current dashboard">⬇ One-page summary (PDF)</button>
         <button id="dl-xlsx" class="small">⬇ Excel</button>
       </div>
@@ -318,11 +322,12 @@
   <form id="dlg-form" method="dialog" novalidate>
     <div class="dlg-body">
       <div class="steps"><span data-st="0">1 · Email</span><span data-st="1">2 · Status update</span><span data-st="3">3 · CD Strategy details</span></div>
-      <h3 id="dlg-title">Update territory</h3>
+      <h3 id="dlg-title">Update a CD Strategy</h3>
       <div class="muted" id="dlg-current"></div>
       <div id="step-0">
-        <div class="field"><label for="f-email">Your email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
-        <div class="hint">Your email is recorded with every update. Only the territorial focal person, the CWG lead and programme coordinators can change the CD Strategy details.</div>
+        <div class="field"><label for="f-email">Your registered email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
+        <div class="field" id="terr-pick" hidden><label for="f-terr">Territory</label><select id="f-terr"></select></div>
+        <div class="hint">Only registered people can update: each territory's <strong>focal person</strong> (status and CD Strategy details) and its <strong>backup person</strong> (status only). CWG leads and programme coordinators can update their territories too. Your email is recorded with every update.</div>
       </div>
       <div id="step-1" hidden>
         <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select></div>
@@ -341,6 +346,7 @@
             <div class="field"><label for="f-femail">Focal person email</label><input type="email" id="f-femail" maxlength="200"></div>
             <div class="field"><label for="f-fphone">Focal person phone</label><input type="text" id="f-fphone" maxlength="40"></div>
           </div>
+          <div class="field"><label for="f-bemail">Backup person email <span class="muted" style="font-weight:400">(can update the status only)</span></label><input type="email" id="f-bemail" maxlength="200"></div>
           <input type="hidden" id="f-period">
           <div class="two">
             <div class="field"><label for="f-period-from">Strategy period: from</label><select id="f-period-from"></select></div>
@@ -684,7 +690,7 @@ function renderLog() {
   const list = logs.filter(l => l.territoryId === detailId).sort(logSort);
   const el = $("log-list");
   $("td-count").textContent = list.length ? `${list.length} update${list.length === 1 ? "" : "s"}` : "";
-  if (!list.length) { el.innerHTML = `<div class="muted">No updates logged for this territory yet.${canWrite && db && !summaryMode ? " Use <strong>Update</strong> above to record a status change." : ""}</div>`; return; }
+  if (!list.length) { el.innerHTML = `<div class="muted">No updates logged for this territory yet.${canWrite && db && !summaryMode ? " Registered focal and backup persons can record one with the orange <strong>Update</strong> button." : ""}</div>`; return; }
   el.innerHTML = list.map(l => {
     const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus);
     const from = fi >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(fi)};margin:0"></span>${esc(SHORT[fi])}</span>` : "";
@@ -713,10 +719,10 @@ async function resolveNames() {}
 
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
-  ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"],
+  ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
   ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"],
 ];
-const PRIVATE_FIELDS = ["focalEmail", "focalPhone"];
+const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
 const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "").trim());
 const splitEmails = txt => [...new Set(String(txt || "").split(/[\s,;]+/).map(normEmail).filter(validEmail))];
@@ -757,7 +763,7 @@ function setStep(n) {
   const save = $("dlg-save"), skip = $("dlg-skip");
   save.disabled = false; skip.disabled = false;
   if (n === 0) { save.textContent = "Continue"; skip.hidden = true; setTimeout(() => $("f-email").focus(), 30); }
-  if (n === 1) { save.textContent = "Save status & continue"; skip.hidden = false; skip.textContent = "Skip to details"; }
+  if (n === 1) { save.textContent = ed.role ? "Save status & continue" : "Save status"; skip.hidden = !ed.role; skip.textContent = "Skip to details"; }
   if (n === 2) {
     const t = ed.terr, role = ed.role;
     $("status-saved").hidden = !ed.statusSaved;
@@ -766,41 +772,44 @@ function setStep(n) {
       $("details-locked").hidden = true; $("details-form").hidden = false;
       DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] || ""); });
       periodToSelects(t.strategyPeriod);
-      ["f-femail", "f-fphone"].forEach(id => { $(id).placeholder = (k => (t[k] === undefined ? "Saved privately — retype to change" : ""))(id === "f-femail" ? "focalEmail" : "focalPhone"); });
+      [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details & finish"; skip.hidden = false; skip.textContent = "Finish without details";
       $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
     } else {
       $("details-form").hidden = true; $("details-locked").hidden = false;
-      $("details-locked").innerHTML = `<strong>${esc(ed.email)}</strong> isn't on the approved list for ${esc(t.name)}'s CD Strategy details. Only the territorial focal person, the ${esc(cwgOf(t))} CWG lead and programme coordinators can update details. ${ed.statusSaved ? "Your status update has been saved." : ""}`;
+      $("details-locked").innerHTML = `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}As the backup person for ${esc(t.name)}, you can update the status only. The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.`;
       save.textContent = "Finish"; skip.hidden = true;
     }
   }
 }
-function openDialog(id) {
-  const t = territories.find(x => x.id === id); if (!t) return;
+function openDialog() {
   let remembered = ""; try { remembered = sessionStorage.getItem("cd-email") || ""; } catch (e) {}
-  ed = { terr: { ...t }, email: "", step: 0, statusSaved: false, detailsSaved: false, newLogs: [] };
-  $("dlg-title").textContent = t.name;
-  const i = sIndex(t.status);
-  $("dlg-current").textContent = `Current status: ${i >= 0 ? STATUSES[i].label : "—"}${t.lastUpdated ? " · last updated " + fmtDate(t.lastUpdated) : ""}`;
-  $("f-email").value = remembered;
-  $("f-status").value = t.status || STATUSES[0].key;
+  ed = { terr: null, email: "", mine: null, step: 0, statusSaved: false, detailsSaved: false, newLogs: [] };
+  $("dlg-title").textContent = "Update a CD Strategy";
+  $("dlg-current").textContent = "Enter your registered email to continue.";
+  $("terr-pick").hidden = true; $("f-terr").innerHTML = "";
+  $("f-email").value = remembered; $("f-email").disabled = false;
   $("f-date").value = todayISO();
   $("f-note").value = "";
   setStep(0);
   $("dlg").showModal();
 }
+function chooseTerritory(m) {
+  const t = territories.find(x => x.id === m.id) || { id: m.id, name: m.name };
+  ed.terr = { ...t }; ed.role = m.canDetails ? m.role : null; ed.statusRole = m.role;
+  $("dlg-title").textContent = t.name;
+  const i = sIndex(t.status);
+  $("dlg-current").textContent = `Verified as ${m.role}: ${ed.email} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
+  $("f-status").value = t.status || STATUSES[0].key;
+}
+$("upd-btn").addEventListener("click", () => { if (db) openDialog(); });
 async function finishDialog() {
   $("dlg").close();
   if (!ed || (!ed.statusSaved && !ed.detailsSaved)) return;
   toast(`${ed.terr.name} updated`);
   await load();
 }
-async function goDetails() {
-  $("dlg-save").disabled = true; $("dlg-skip").disabled = true;
-  try { ed.role = await rpc("check_details_access", { p_email: ed.email, p_territory: ed.terr.id }); } catch (e) { ed.role = null; }
-  setStep(2);
-}
+async function goDetails() { setStep(2); }
 $("dlg-cancel").addEventListener("click", () => { if (ed && ed.step === 2 && ed.statusSaved) finishDialog(); else $("dlg").close(); });
 $("dlg-skip").addEventListener("click", () => { if (!ed) return; if (ed.step === 1) goDetails(); else finishDialog(); });
 const writeErr = errMsg;
@@ -809,11 +818,26 @@ $("dlg-form").addEventListener("submit", async e => {
   if (!ed || !db) return;
   const t = ed.terr;
   if (ed.step === 0) {
+    if (ed.mine && ed.mine.length > 1) {   // second press: territory chosen from the list
+      const m = ed.mine.find(x => x.id === $("f-terr").value); if (!m) { $("dlg-err").textContent = "Please choose a territory."; return; }
+      chooseTerritory(m); setStep(1); return;
+    }
     const email = $("f-email").value.trim();
     if (!validEmail(email)) { $("dlg-err").textContent = "Please enter a valid email address."; return; }
     ed.email = normEmail(email);
+    $("dlg-save").disabled = true;
+    let mine = [];
+    try { mine = await rpc("get_my_territories", { p_email: ed.email }) || []; } catch (e2) { $("dlg-save").disabled = false; $("dlg-err").textContent = errMsg(e2); return; }
+    $("dlg-save").disabled = false;
+    if (!mine.length) { $("dlg-err").textContent = "This email isn't registered as a focal or backup person for any territory. Please check the email, or ask your programme coordinator to register you."; return; }
     try { sessionStorage.setItem("cd-email", ed.email); } catch (e2) {}
-    setStep(1); return;
+    ed.mine = mine;
+    if (mine.length === 1) { chooseTerritory(mine[0]); setStep(1); return; }
+    $("f-email").disabled = true;
+    $("f-terr").innerHTML = `<option value="">— Choose a territory —</option>` + mine.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+    $("terr-pick").hidden = false;
+    $("dlg-current").textContent = `Verified: ${ed.email} — choose which territory to update.`;
+    return;
   }
   if (ed.step === 1) {
     const status = $("f-status").value, date = $("f-date").value, note = $("f-note").value.trim();
@@ -823,7 +847,7 @@ $("dlg-form").addEventListener("submit", async e => {
       await rpc("submit_status_update", { p_email: ed.email, p_territory: t.id, p_status: status, p_date: date, p_note: note });
       Object.assign(t, { status });
       ed.statusSaved = true;
-      await goDetails();
+      if (ed.role) await goDetails(); else finishDialog();
     } catch (err) { $("dlg-save").disabled = false; $("dlg-skip").disabled = false; $("dlg-err").textContent = writeErr(err); }
     return;
   }
@@ -838,7 +862,7 @@ $("dlg-form").addEventListener("submit", async e => {
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
     if (vals.focalEmail) vals.focalEmail = normEmail(vals.focalEmail);
     // private fields we can't see: only send them if the person typed something
-    ["focalEmail", "focalPhone"].forEach(k => { if (t[k] === undefined && !vals[k]) delete vals[k]; });
+    PRIVATE_FIELDS.forEach(k => { if (t[k] === undefined && !vals[k]) delete vals[k]; });
     $("dlg-save").disabled = true; $("dlg-skip").disabled = true;
     try {
       const res = await rpc("submit_details_update", { p_email: ed.email, p_territory: t.id, p_details: vals });
@@ -899,7 +923,7 @@ function renderDatabase() {
     const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
     return (c || String(a.name).localeCompare(String(b.name))) * dbSort.dir;
   });
-  const upd = canUpdate();
+  const upd = false;
   $("db-head").innerHTML = `<tr>${cols.map(([k, h]) => `<th class="sortable${k === "updates" ? " num" : ""}" data-k="${k}">${esc(h)}${dbSort.key === k ? `<span class="dir">${dbSort.dir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("")}${upd ? "<th></th>" : ""}</tr>`;
   $("db-head").querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
     const k = th.dataset.k; if (dbSort.key === k) dbSort.dir *= -1; else { dbSort.key = k; dbSort.dir = 1; } renderDatabase();
@@ -928,7 +952,7 @@ function renderDetail() {
   if (!t) { card.innerHTML = `<div class="muted">This territory wasn't found.</div>`; $("log-list").innerHTML = ""; $("td-count").textContent = ""; return; }
   card.innerHTML = `<div class="td-head">
       <div><h2>${esc(t.name)}</h2>${badge(t.status)}</div>
-      ${canUpdate() ? `<button class="primary" id="td-update">Update</button>` : ""}
+
     </div>
     <div class="td-facts">
       <div><div class="k">Zone · CWG</div><div class="v">${esc(zoneOf(t) === "OTHER" ? cwgOf(t) : zoneLabel(zoneOf(t)) + " · " + cwgOf(t))}</div></div>
@@ -941,7 +965,7 @@ function renderDetail() {
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
     </div>`;
-  const b = $("td-update"); if (b) b.addEventListener("click", () => openDialog(t.id));
+
 }
 
 function checkPublicSync() {}
@@ -1180,14 +1204,14 @@ async function buildXLSX() {
   const ts = wb.addWorksheet("Territories", { views: [{ state: "frozen", ySplit: 1 }] });
   ts.columns = [
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
-    { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Strategy period", key: "period", width: 14 },
+    { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
     { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", period: t.strategyPeriod || "", target: t.target || "", status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: t.target || "", status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
     r.getCell("last").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
