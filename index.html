@@ -172,10 +172,11 @@
   .cwg-pills button.zone-pill .zp-sub { font-size: 10.5px; letter-spacing: .6px; }
   .cwg-pills button.zone-pill.on .zp-sub { color: #fff; }
   .zone-lock { display: inline-flex; flex-direction: column; line-height: 1; vertical-align: middle; font-family: "Helvetica Neue", Arial, sans-serif; }
-  .zone-lock .zl-name { color: var(--cwg-b); font-weight: 900; letter-spacing: -1.5px; }
+  .zone-lock .zl-name { color: var(--cwg-b); font-weight: 900; letter-spacing: -1.5px; transform-origin: left center; display: inline-block; align-self: flex-start; }
   .zone-lock .zl-sub { color: var(--text-primary); font-weight: 400; text-transform: none; white-space: nowrap; }
-  .zone-lock.zl-lg .zl-name { font-size: 30px; } .zone-lock.zl-lg .zl-sub { font-size: 9.5px; letter-spacing: 2.6px; margin-top: 2px; }
-  .zone-lock.zl-md .zl-name { font-size: 19px; letter-spacing: -1px; } .zone-lock.zl-md .zl-sub { font-size: 7.5px; letter-spacing: 1.6px; margin-top: 2px; }
+  .zone-lock.zl-lg .zl-name { font-size: 52px; letter-spacing: -2.5px; } .zone-lock.zl-lg .zl-sub { font-size: 14px; letter-spacing: 4px; margin-top: 4px; }
+  .zone-lock.zl-md .zl-name { font-size: 34px; letter-spacing: -1.8px; } .zone-lock.zl-md .zl-sub { font-size: 10.5px; letter-spacing: 2.4px; margin-top: 3px; }
+  @media (max-width: 640px) { .zone-lock.zl-lg .zl-name { font-size: 38px; } .zone-lock.zl-lg .zl-sub { font-size: 11px; letter-spacing: 2.6px; } .zone-lock.zl-md .zl-name { font-size: 26px; } .zone-lock.zl-md .zl-sub { font-size: 8.5px; letter-spacing: 1.6px; } }
   .cwg-pills button.branded.on { background: var(--cwg-a); border-color: var(--cwg-a); color: #fff; }
   .cwg-pills button.zone-pill.on { background: var(--cwg-b); border-color: var(--cwg-b); }
   .cwg-pills button.branded.on .cl-zone, .cwg-pills button.branded.on .cl-num { color: #fff; }
@@ -199,8 +200,8 @@
   :root { --spea: #1a5cba; --sasia: #e24a1b; --spea1: #188afd; --spea2: #2e6be0; --sasia1: #fe6809; --sasia2: #ff8228; }
   :root[data-theme="dark"] { --spea: #5b93e6; --sasia: #f0703f; --spea2: #5a8ef0; }
   @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --spea: #5b93e6; --sasia: #f0703f; --spea2: #5a8ef0; } }
-  tr.zone-group.z-SPEA td { color: var(--spea); box-shadow: inset 4px 0 0 var(--spea); padding-top: 12px; padding-bottom: 10px; }
-  tr.zone-group.z-SASIA td { color: var(--sasia); box-shadow: inset 4px 0 0 var(--sasia); padding-top: 12px; padding-bottom: 10px; }
+  tr.zone-group.z-SPEA td { color: var(--spea); box-shadow: inset 4px 0 0 var(--spea); padding-top: 16px; padding-bottom: 14px; }
+  tr.zone-group.z-SASIA td { color: var(--sasia); box-shadow: inset 4px 0 0 var(--sasia); padding-top: 16px; padding-bottom: 14px; }
   tr.group-row.cwg-branded td { background: color-mix(in srgb, var(--cwg-a) 9%, var(--surface-0)); box-shadow: inset 4px 0 0 var(--cwg-a); padding-top: 10px; padding-bottom: 10px; }
   .cwg-lock { display: inline-flex; align-items: stretch; gap: 0; line-height: 1; margin-right: 16px; vertical-align: middle; font-family: "Helvetica Neue", Arial, sans-serif; }
   .cwg-lock .cl-zone { color: var(--cwg-b); font-weight: 900; font-size: 26px; letter-spacing: -1.5px; }
@@ -588,6 +589,23 @@ function zoneLockup(z, size) {
   if (!ZONE_SUB[z]) return "";
   return `<span class="zone-lock zl-${size || "md"}" role="img" aria-label="${esc(zoneLabel(z))}" style="--cwg-b: var(--${z.toLowerCase()})"><span class="zl-name">${z}</span><span class="zl-sub">${ZONE_SUB[z]}</span></span>`;
 }
+// Like the logo: stretch the big zone name so it spans the full width of the spaced-out zone line under it
+function fitZoneLocks() {
+  requestAnimationFrame(() => document.querySelectorAll(".zone-lock").forEach(z => {
+    const n = z.querySelector(".zl-name"), sub = z.querySelector(".zl-sub");
+    if (!n || !sub || !n.offsetParent) return;
+    n.style.transform = ""; sub.style.letterSpacing = "";
+    const w = n.getBoundingClientRect().width; if (!w) return;
+    const scale = Math.min(1.25, sub.getBoundingClientRect().width / w);   // widen the name a little, like the logo's extended type
+    if (scale > 1) n.style.transform = `scaleX(${scale.toFixed(3)})`;
+    const nameW = w * Math.max(1, scale), chars = sub.textContent.length;
+    let ls = parseFloat(getComputedStyle(sub).letterSpacing) || 0;
+    const over = sub.getBoundingClientRect().width - nameW;   // then tighten the zone line so both end together
+    if (over > 0) sub.style.letterSpacing = `${Math.max(0.3, ls - over / chars).toFixed(2)}px`;
+    else if (over < 0) sub.style.letterSpacing = `${(ls + (-over) / chars).toFixed(2)}px`;
+  }));
+}
+window.addEventListener("resize", fitZoneLocks);
 // CWG lockup: "SPEA" + number + stacked "Cluster Working Group", in each CWG's brand colours
 function cwgParts(c) { const m = String(c || "").trim().match(/^(SPEA|SASIA)\s*(\d)$/i); return m ? { zone: m[1].toUpperCase(), num: m[2] } : null; }
 function cwgVars(c) { const p = cwgParts(c); return p ? `--cwg-b: var(--${p.zone.toLowerCase()}); --cwg-a: var(--${p.zone.toLowerCase()}${p.num});` : ""; }
@@ -733,7 +751,7 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} fitZoneLocks(); }
 
 function latestInfo() {
   const ids = new Set(viewTerr().map(t => t.id));
@@ -1317,7 +1335,7 @@ function renderDatabase() {
       ? `<tr class="group-row cwg-branded" style="${cwgVars(g)}"><td colspan="${ncol}">${lock}<span class="cwg-count">${gr.length} territor${gr.length === 1 ? "y" : "ies"}</span>${leadLine(g)}</td></tr>`
       : `<tr class="group-row"><td colspan="${ncol}"><span class="grp-name">${esc(g)} · ${gr.length} territor${gr.length === 1 ? "y" : "ies"}</span>${leadLine(g)}</td></tr>`) + gr.map(rowHtml).join("");
   }).join("");
-  wireRows($("db-body"));
+  wireRows($("db-body")); fitZoneLocks();
   $("db-body").querySelectorAll("[data-upd]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); openDialog(b.dataset.upd); }));
 }
 /* ---------- territory mini map (countries + THQ + office) ---------- */
