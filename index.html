@@ -1000,7 +1000,7 @@ function openDialog(terrId) {
     $("f-email").disabled = true;
     $("f-terr").innerHTML = `<option value="">— Choose a territory —</option>` + mine.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
     $("terr-pick").hidden = false;
-    $("dlg-current").textContent = `Signed in as ${isFullAdmin ? "admin" : (viewer.role || (isFocalViewer() ? "CD focal person" : "admin"))} — choose which territory to update.`;
+    $("dlg-current").textContent = `Signed in as ${viewer.role || (isFocalViewer() ? "CD focal person" : "admin")} — choose which territory to update.`;
     $("dlg").showModal(); setTimeout(() => $("f-terr").focus(), 30);
     return;
   }
