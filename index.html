@@ -510,14 +510,14 @@
 
 <script>
 const STATUSES = [
-  { key: "not_started",  label: "Not Yet Started" },
-  { key: "workshop",     label: "CD Strategy Consultation workshop being planned" },
-  { key: "drafting",     label: "CD Strategy being Drafted" },
-  { key: "submitted",    label: "Draft Completed, Submitted for Approval" },
-  { key: "approved",     label: "Approved by Territorial Board" },
-  { key: "implementing", label: "Approved CD Strategy being Implemented" },
+  { key: "not_started",  label: "Not yet started" },
+  { key: "workshop",     label: "Consultation workshop being planned" },
+  { key: "drafting",     label: "CD Strategy being drafted" },
+  { key: "submitted",    label: "Draft submitted for approval" },
+  { key: "approved",     label: "Approved by the board" },
+  { key: "implementing", label: "CD Strategy being implemented" },
 ];
-const SHORT = ["Not yet started", "Workshop planned", "Being drafted", "Submitted for approval", "Approved by board", "Being implemented"];
+const SHORT = ["Not yet started", "Workshop planned", "Being drafted", "Submitted for approval", "Approved", "Being implemented"];
 const sIndex = k => STATUSES.findIndex(s => s.key === k);
 const sColor = i => `var(--s${i})`;
 
