@@ -210,7 +210,7 @@
         <button id="dl-pdf" class="small primary" title="One-page PDF of the current dashboard">⬇ One-page summary (PDF)</button>
         <button id="dl-xlsx" class="small">⬇ Excel</button>
       </div>
-      <button id="auth-btn" class="small" title="For programme coordinators">Coordinator sign-in</button>
+      <button id="auth-btn" class="small" title="For programme coordinators and CWG leads">🔒 Admin access</button>
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
@@ -220,6 +220,7 @@
   <nav class="tabs" aria-label="Views">
     <a href="#" id="tab-dashboard" class="on">Dashboard</a>
     <a href="#database" id="tab-database">Database</a>
+    <a href="#admin" id="tab-admin" hidden>Admin</a>
   </nav>
   <div id="banner" class="banner" role="status"></div>
 
@@ -286,15 +287,6 @@
         <div class="tblwrap"><table><thead id="db-head"></thead><tbody id="db-body"></tbody></table></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Click a territory to see its update history. Click a column heading to sort.</div>
       </section>
-      <section class="card" id="access-card" style="margin-top:16px" hidden>
-        <h2 style="margin-bottom:4px">Who can update CD Strategy details</h2>
-        <div class="muted" style="font-size:12px">Anyone can record a status update (their email is logged). Changing a territory's CD Strategy details needs one of these emails: the territory's focal person email (set in its details), its CWG lead, or a programme coordinator. Only signed-in coordinators see this panel. You can't remove your own email from the coordinators.</div>
-        <div class="access-grid">
-          <div class="field"><label for="acc-coord">Programme coordinator email(s)</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
-          <div id="acc-leads" style="display:contents"></div>
-        </div>
-        <div style="margin-top:12px"><button class="primary small" id="acc-save">Save approved emails</button></div>
-      </section>
     </div>
     <div id="db-detail" hidden>
       <a href="#database" class="back">← All territories</a>
@@ -304,6 +296,17 @@
         <div id="log-list"><div class="muted">Loading…</div></div>
       </section>
     </div>
+  </div>
+  <div id="view-admin" hidden>
+      <section class="card" id="access-card" hidden>
+        <h2 style="margin-bottom:4px">Admin access &amp; approved emails</h2>
+        <div class="muted" style="font-size:12px;line-height:1.6">Everyone listed here has <strong>admin access</strong>: they can sign in with "Admin access", manage this list, see contact details and emails, and edit or delete history entries. They can also update the CD Strategy details of territories (programme coordinators: all territories; CWG leads: their CWG's territories). Each territory's focal person can update their own territory's details using the focal email saved in its details. Anyone can record a status update. You can't remove your own email.</div>
+        <div class="access-grid">
+          <div class="field"><label for="acc-coord">Programme coordinator email(s)</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
+          <div id="acc-leads" style="display:contents"></div>
+        </div>
+        <div style="margin-top:12px"><button class="primary small" id="acc-save">Save approved emails</button></div>
+      </section>
   </div>
   <footer class="site-foot">
     <div>© 2026 Asia-Pacific Sharing &amp; Learning Programme (ASLP), The Salvation Army. All rights reserved.</div>
@@ -386,9 +389,9 @@
 <dialog id="adlg">
   <form id="adlg-form" method="dialog" novalidate>
     <div class="dlg-body">
-      <h3 id="adlg-title">Coordinator sign-in</h3>
+      <h3 id="adlg-title">Admin access</h3>
       <div id="adlg-in">
-        <div class="muted" style="font-size:13px;margin-top:4px">Programme coordinators sign in to manage the approved emails and to edit or delete history entries. Territories don't need to sign in to record updates.</div>
+        <div class="muted" style="font-size:13px;margin-top:4px">For programme coordinators and CWG leads. We'll email you a sign-in link — you can open it on any device or browser. Territories don't need to sign in to record updates.</div>
         <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
       </div>
       <div id="adlg-sent" class="ok-note" hidden></div>
@@ -445,11 +448,14 @@ let currentView = "dashboard", detailId = null;
 function applyMode() {
   const h = location.hash;
   detailId = h.startsWith("#territory-") ? h.slice("#territory-".length) : null;
-  currentView = (h === "#database" || detailId) ? "database" : "dashboard";
+  currentView = h === "#admin" ? (isEditor ? "admin" : "dashboard") : (h === "#database" || detailId) ? "database" : "dashboard";
   summaryMode = location.hash === "#summary";
   document.body.classList.toggle("summary-mode", summaryMode);
   $("view-dashboard").hidden = currentView !== "dashboard";
   $("view-database").hidden = currentView !== "database";
+  $("view-admin").hidden = currentView !== "admin";
+  $("tab-admin").hidden = !isEditor;
+  $("tab-admin").classList.toggle("on", currentView === "admin");
   $("tab-dashboard").classList.toggle("on", currentView === "dashboard");
   $("tab-database").classList.toggle("on", currentView === "database");
   if (summaryMode) { statusFilter = null; }
@@ -818,7 +824,7 @@ $("dlg-form").addEventListener("submit", async e => {
 /* ---------- access settings (owner / editors) ---------- */
 function renderAccess() {
   const card = $("access-card");
-  const show = !!(db && isEditor && !summaryMode);
+  const show = !!(db && isEditor);
   card.hidden = !show;
   if (!show || card.dataset.editing === "1") return;
   const cl = cwgList().filter(c => c !== UNASSIGNED);
@@ -1223,7 +1229,7 @@ async function load() {
     loadedOnce = true;
     banner("");
     if (isEditor) { try { const a = await rpc("admin_get_access"); accessCfg = { coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {} }; } catch (e) {} }
-    renderAll(); renderAuth();
+    applyMode(); renderAuth();
     $("foot-sync").textContent = "Data refreshed " + new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   } catch (e) {
     banner(loadedOnce ? "Couldn't refresh just now — showing the last loaded data." : "The data couldn't be loaded. Please check your connection and reload the page.");
@@ -1231,16 +1237,18 @@ async function load() {
 }
 function renderAuth() {
   const b = $("auth-btn");
-  b.textContent = viewer.email ? (isEditor ? `Coordinator: ${viewer.email}` : `Signed in: ${viewer.email}`) : "Coordinator sign-in";
+  b.textContent = viewer.email ? (isEditor ? `🔓 Admin: ${viewer.email}` : `Signed in: ${viewer.email}`) : "🔒 Admin access";
+  $("tab-admin").hidden = !isEditor;
 }
 $("auth-btn").addEventListener("click", () => {
   const signedIn = !!viewer.email;
   $("adlg-in").hidden = signedIn; $("adlg-sent").hidden = true; $("adlg-err").textContent = "";
   $("adlg-out").hidden = !signedIn;
-  $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>${isEditor ? " (programme coordinator)" : ". This email isn't a programme coordinator, so coordinator tools stay hidden."}</div>` : "";
+  $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>${isEditor ? ` (${esc(viewer.role || "admin")}). Open the <a href="#admin" id="go-admin">Admin</a> tab to manage approved emails.` : ". This email doesn't have admin access yet — ask a programme coordinator to add it in the Admin tab."}</div>` : "";
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
   $("adlg").showModal();
+  const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
 $("adlg-cancel").addEventListener("click", () => $("adlg").close());
 $("adlg-form").addEventListener("submit", async e => {
@@ -1257,14 +1265,19 @@ $("adlg-form").addEventListener("submit", async e => {
 applyMode();
 (async () => {
   if (!window.supabase) { banner("The page couldn't load its data library. Please check your connection and reload."); return; }
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: "pkce", persistSession: true, detectSessionInUrl: true } });
+  const hashParams = new URLSearchParams(location.hash.slice(1));
+  const linkError = hashParams.get("error_description") || new URLSearchParams(location.search).get("error_description");
+  const cameFromLink = hashParams.has("access_token");
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: "implicit", persistSession: true, detectSessionInUrl: true, autoRefreshToken: true } });
   db.auth.onAuthStateChange((evt) => {
-    if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") {
-      if (location.search.includes("code=")) history.replaceState(null, "", location.pathname + location.hash);
-      load();
-    }
+    if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") load();
   });
+  try { await db.auth.getSession(); } catch (e) {}
+  if (cameFromLink || linkError || location.search.includes("code=")) history.replaceState(null, "", location.pathname + (cameFromLink ? "#admin" : ""));
   await load();
+  applyMode();
+  if (cameFromLink) toast(isEditor ? "Signed in — welcome to the Admin tab" : "Signed in, but this email doesn't have admin access yet");
+  if (linkError) banner("That sign-in link didn't work (" + linkError.replace(/\+/g, " ") + "). Links work once and expire after an hour — click Admin access to get a new one.");
   setInterval(load, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
 })();
