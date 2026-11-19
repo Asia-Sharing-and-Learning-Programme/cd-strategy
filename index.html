@@ -228,6 +228,14 @@
   .dbadge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--grid); font-weight: 600; }
   .access-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
   .access-grid textarea { min-height: 70px; }
+  .dlg-help { margin-top: 12px; font-size: 11.5px; color: var(--text-muted); }
+  .help-box { margin-top: 28px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); text-align: center; }
+  .help-q { font-weight: 700; font-size: 14px; }
+  .help-a { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .help-leads { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin-top: 10px; font-size: 12.5px; }
+  .help-leads:empty { display: none; }
+  .help-leads .hl { display: inline-flex; align-items: center; gap: 6px; }
+  .help-leads .mini-lock { font-size: 13px; }
   .site-foot { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.8; }
   .foot-sync { color: var(--text-muted); font-size: 11px; }
   .hdr-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
@@ -467,6 +475,11 @@
         <div class="tblwrap"><table><thead><tr><th>Date</th><th>Email</th><th>View</th><th>Email sent</th></tr></thead><tbody id="dl-body"></tbody></table></div>
       </section>
   </div>
+  <section class="help-box" id="help-box">
+    <div class="help-q">Having trouble with the site?</div>
+    <div class="help-a">Contact your <strong>CWG lead</strong> for support.</div>
+    <div class="help-leads" id="help-leads"></div>
+  </section>
   <footer class="site-foot">
     <div>© 2026 Asia-Pacific Sharing &amp; Learning Programme (ASLP), The Salvation Army. All rights reserved.</div>
     <div class="foot-sync" id="foot-sync"></div>
@@ -528,6 +541,7 @@
         </div>
       </div>
       <div class="err" id="dlg-err"></div>
+      <div class="dlg-help">Having trouble? Contact your CWG lead for support.</div>
     </div>
     <div class="dlg-actions">
       <button type="button" id="dlg-cancel">Cancel</button>
@@ -614,6 +628,7 @@
       <div id="adlg-sent" class="ok-note" hidden></div>
       <div id="adlg-out" hidden></div>
       <div class="err" id="adlg-err"></div>
+      <div class="dlg-help">Having trouble signing in? Contact your CWG lead for support.</div>
     </div>
     <div class="dlg-actions">
       <button type="button" id="adlg-cancel">Close</button>
@@ -811,7 +826,11 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} fitZoneLocks(); }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
+function renderHelp() {
+  const named = cwgLeadInfo.filter(l => l.name && cwgParts(l.cwg)).sort((a, b) => String(a.cwg).localeCompare(String(b.cwg)));
+  $("help-leads").innerHTML = named.map(l => { const p = cwgParts(l.cwg); return `<span class="hl" style="${cwgVars(l.cwg)}"><span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>${esc(l.name)}</span>`; }).join("");
+}
 
 function latestInfo() {
   const ids = new Set(viewTerr().map(t => t.id));
