@@ -176,10 +176,10 @@
   .indent { padding-left: 14px; display: inline-block; }
   tr.zone-group td { background: var(--grid); font-weight: 800; font-size: 13px; color: var(--text-primary); padding-top: 12px; }
   tr.group-row td { background: var(--surface-0); font-weight: 700; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; padding-top: 12px; }
-  .steps { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-  .steps span { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
-  .steps span.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  .steps span.done { color: var(--text-primary); border-color: var(--text-muted); }
+  .dlg-tabs { display: flex; gap: 2px; margin: 12px 0 14px; border-bottom: 1px solid var(--border); }
+  .dlg-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 7px 12px; margin-bottom: -1px; font-size: 13px; color: var(--text-muted); }
+  .dlg-tabs button:hover { color: var(--text-primary); }
+  .dlg-tabs button[aria-selected="true"] { color: var(--text-primary); border-bottom-color: var(--accent); font-weight: 600; }
   .hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
   .lock { padding: 12px; border-radius: 8px; background: var(--surface-0); border: 1px solid var(--border); font-size: 13px; margin-top: 12px; }
   .ok-note { padding: 8px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok-ink); font-size: 12px; margin-top: 12px; }
@@ -382,9 +382,9 @@
 <dialog id="dlg">
   <form id="dlg-form" method="dialog" novalidate>
     <div class="dlg-body">
-      <div class="steps"><span data-st="0">1 · Email</span><span data-st="1">2 · Status update</span><span data-st="3">3 · CD Strategy details</span></div>
       <h3 id="dlg-title">Update a CD Strategy</h3>
       <div class="muted" id="dlg-current"></div>
+      <div class="dlg-tabs" role="tablist" aria-label="What to update" hidden><button type="button" role="tab" data-st="1">Status update</button><button type="button" role="tab" data-st="2">CD Strategy details</button></div>
       <div id="step-0">
         <div class="field"><label for="f-email">Your registered email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div class="field" id="terr-pick" hidden><label for="f-terr">Territory</label><select id="f-terr"></select></div>
@@ -946,15 +946,14 @@ $("f-status").innerHTML = STATUSES.map(st => `<option value="${st.key}">${esc(st
 function setStep(n) {
   ed.step = n;
   $("step-0").hidden = n !== 0; $("step-1").hidden = n !== 1; $("step-2").hidden = n !== 2;
-  document.querySelectorAll("#dlg .steps span").forEach(sp => {
-    const k = +sp.dataset.st, idx = k === 3 ? 2 : k;
-    sp.classList.toggle("on", idx === n); sp.classList.toggle("done", idx < n);
-  });
+  document.querySelector("#dlg .dlg-tabs").hidden = n === 0;
+  document.querySelectorAll("#dlg .dlg-tabs button").forEach(b => b.setAttribute("aria-selected", String(+b.dataset.st === n)));
+  $("dlg-cancel").textContent = n === 0 ? "Cancel" : "Close";
   $("dlg-err").textContent = "";
   const save = $("dlg-save"), skip = $("dlg-skip");
   save.disabled = false; skip.disabled = false;
   if (n === 0) { save.textContent = "Continue"; skip.hidden = true; setTimeout(() => $("f-email").focus(), 30); }
-  if (n === 1) { save.textContent = (ed.role || ed.needsSignin) ? "Save status & continue" : "Save status"; skip.hidden = !(ed.role || ed.needsSignin); skip.textContent = "Skip to details"; }
+  if (n === 1) { save.textContent = "Save status"; skip.hidden = true; }
   if (n === 2) {
     const t = ed.terr, role = ed.role;
     $("status-saved").hidden = !ed.statusSaved;
@@ -969,14 +968,14 @@ function setStep(n) {
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
-      save.textContent = "Save details & finish"; skip.hidden = false; skip.textContent = "Finish without details";
+      save.textContent = "Save details"; skip.hidden = true;
       $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
     } else {
       $("details-form").hidden = true; $("details-locked").hidden = false;
       $("details-locked").innerHTML = ed.needsSignin
         ? `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}To edit the CD Strategy details of ${esc(t.name)}, please <strong>sign in first</strong>: close this box, click <strong>Sign in</strong>, choose <strong>${/coordinator|CWG lead/i.test(ed.statusRole || "") ? "Admin" : "CD Focal Person"}</strong> and open the link we email to ${esc(ed.email)}. Then click <strong>Update</strong> again.`
         : `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}As the backup person for ${esc(t.name)}, you can update the status only. The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.`;
-      save.textContent = "Finish"; skip.hidden = true;
+      save.textContent = "Done"; skip.hidden = true;
     }
   }
 }
@@ -1024,7 +1023,8 @@ async function finishDialog() {
   await load();
 }
 async function goDetails() { setStep(2); }
-$("dlg-cancel").addEventListener("click", () => { if (ed && ed.step === 2 && ed.statusSaved) finishDialog(); else $("dlg").close(); });
+$("dlg-cancel").addEventListener("click", () => { if (ed && (ed.statusSaved || ed.detailsSaved)) finishDialog(); else $("dlg").close(); });
+document.querySelectorAll("#dlg .dlg-tabs button").forEach(b => b.addEventListener("click", () => { if (ed && ed.terr && ed.step !== +b.dataset.st) setStep(+b.dataset.st); }));
 $("dlg-skip").addEventListener("click", () => { if (!ed) return; if (ed.step === 1) goDetails(); else finishDialog(); });
 const writeErr = errMsg;
 $("dlg-form").addEventListener("submit", async e => {
