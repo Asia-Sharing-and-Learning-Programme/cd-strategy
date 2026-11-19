@@ -355,8 +355,8 @@
         <h2 style="margin-bottom:4px" id="acc-title">Admins</h2>
         <div class="muted" id="acc-help" style="font-size:12px;line-height:1.6">Everyone listed here can <strong>Sign in → Admin</strong>. Admins can see contact details and emails, edit or delete history entries, manage these lists and set each territory's focal and backup persons (below). They can also update CD Strategy details: programme coordinators and other admins for all territories, CWG leads for their CWG's territories. One email per line. You can't remove your own email.</div>
         <div class="access-grid">
-          <div class="field"><label for="acc-coord">Programme coordinators</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
-          <div class="field"><label for="acc-other">Other admins</label><textarea id="acc-other" placeholder="one per line (not coordinators, but need admin access)"></textarea></div>
+          <div class="field"><label for="acc-coord">Programme coordinators</label><textarea id="acc-coord" placeholder="one email per line — add as many as needed"></textarea></div>
+          <div class="field"><label for="acc-other">Other admins</label><textarea id="acc-other" placeholder="one email per line — people who are not coordinators but need admin access"></textarea></div>
           <div id="acc-leads" style="display:contents"></div>
         </div>
         <div style="margin-top:12px"><button class="primary small" id="acc-save">Save admins</button></div>
@@ -1107,14 +1107,15 @@ function renderAccess() {
   const leadOnly = accessCfg.scope === "cwg";
   const cl = leadOnly ? (accessCfg.leadCwgs || []) : cwgList().filter(c => c !== UNASSIGNED);
   $("acc-coord").closest(".field").hidden = leadOnly; $("acc-other").closest(".field").hidden = leadOnly;
-  $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG leads` : "Admins";
+  $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG lead` : "Admins";
   $("acc-help").innerHTML = leadOnly
-    ? `As a CWG lead you manage <strong>${esc(cl.join(" and "))}</strong> only: your CWG's lead emails here, and your territories' focal and backup persons below. Programme coordinators and other admins manage everything else. One email per line. You can't remove your own email.`
-    : `Everyone listed here can <strong>Sign in → Admin</strong>. <strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. <strong>CWG leads</strong> can only manage their own CWG: its lead emails, its territories' focal and backup persons, CD Strategy details and history. One email per line. You can't remove your own email.`;
+    ? `As a CWG lead you can see who leads <strong>${esc(cl.join(" and "))}</strong>, and manage your territories' focal and backup persons below. Only programme coordinators and other admins can change who has admin access.`
+    : `Everyone listed here can <strong>Sign in → Admin</strong>. <strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything (enter one email per line, as many as needed). Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories. You can't remove your own email.`
   $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
   $("acc-other").value = (accessCfg.otherAdmins || []).join("\n");
-  $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead email(s)</label><textarea data-cwg="${esc(c)}" placeholder="one per line">${esc(((accessCfg.cwgLeads || {})[c] || []).join("\n"))}</textarea></div>`).join("");
-  card.querySelectorAll("textarea").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
+  $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead</label><input type="email" data-cwg="${esc(c)}" maxlength="200" placeholder="one email" value="${esc(((accessCfg.cwgLeads || {})[c] || [])[0] || "")}" ${leadOnly ? "readonly" : ""}></div>`).join("");
+  $("acc-save").hidden = leadOnly;
+  card.querySelectorAll("textarea, input[data-cwg]").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
 }
 function renderContacts() {
   const card = $("contacts-card");
@@ -1149,7 +1150,12 @@ $("acc-save").addEventListener("click", async () => {
   const card = $("access-card"), b = $("acc-save");
   const leadOnly = accessCfg.scope === "cwg";
   const cfg = { ...accessCfg, coordinators: leadOnly ? accessCfg.coordinators : splitEmails($("acc-coord").value), otherAdmins: leadOnly ? accessCfg.otherAdmins : splitEmails($("acc-other").value), cwgLeads: {}, updatedAt: Date.now() };
-  card.querySelectorAll("textarea[data-cwg]").forEach(ta => { cfg.cwgLeads[ta.dataset.cwg] = splitEmails(ta.value); });
+  for (const inp of card.querySelectorAll("input[data-cwg]")) {
+    const v = normEmail(inp.value);
+    if (/[\s,;]/.test(inp.value.trim())) { toast(`Each CWG can have only one CWG lead (${inp.dataset.cwg}).`); return; }
+    if (v && !validEmail(v)) { toast(`The ${inp.dataset.cwg} CWG lead email doesn't look right.`); return; }
+    cfg.cwgLeads[inp.dataset.cwg] = v ? [v] : [];
+  }
   b.disabled = true;
   try { await rpc("admin_set_access", { p_coordinators: leadOnly ? [] : cfg.coordinators, p_cwg_leads: cfg.cwgLeads, p_other_admins: leadOnly ? null : cfg.otherAdmins }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Admins saved"); }
   catch (err) { toast(errMsg(err)); }
