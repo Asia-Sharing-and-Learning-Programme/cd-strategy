@@ -218,6 +218,9 @@
   .country-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--grid); font-size: 12px; font-weight: 600; }
   .country-chip button { border: 0; background: transparent; padding: 0 2px; font-size: 14px; line-height: 1; color: var(--text-muted); }
   .chip-picker { display: flex; gap: 6px; }
+  .office-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+  .office-row { display: grid; grid-template-columns: 1fr 92px 92px auto; gap: 6px; }
+  @media (max-width: 520px) { .office-row { grid-template-columns: 1fr 1fr auto; } .office-row [data-o=name] { grid-column: 1 / -1; } }
   .chip-picker input { flex: 1; }
   .office-pin svg { display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
   .map-key { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
@@ -406,10 +409,9 @@
             <div class="field"><label for="f-lng">Longitude</label><input type="text" id="f-lng" inputmode="decimal" maxlength="20" placeholder="e.g. 120.9900"></div>
           </div>
           <div class="hint" style="margin-top:4px">Tip: in Google Maps, right-click the headquarters and click the numbers shown at the top to copy them. Paste them into Latitude — both boxes fill in automatically.</div>
-          <div class="field"><label for="f-office">National or other office <span class="muted" style="font-weight:400">(optional, e.g. India National Office)</span></label><input type="text" id="f-office" maxlength="120" placeholder="e.g. India National Office, Kolkata"></div>
-          <div class="two">
-            <div class="field"><label for="f-olat">Office latitude</label><input type="text" id="f-olat" inputmode="decimal" maxlength="20"></div>
-            <div class="field"><label for="f-olng">Office longitude</label><input type="text" id="f-olng" inputmode="decimal" maxlength="20"></div>
+          <div class="field"><label>Regional / national offices <span class="muted" style="font-weight:400">(optional, e.g. Regional Headquarters, India National Office)</span></label>
+            <div id="f-offices" class="office-rows"></div>
+            <div><button type="button" class="small" id="f-office-add">+ Add office</button></div>
           </div>
         </div>
       </div>
@@ -840,7 +842,7 @@ async function resolveNames() {}
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
   ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
-  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Territorial Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"], ["office", "National/other office", "f-office"], ["officeLat", "Office latitude", "f-olat"], ["officeLng", "Office longitude", "f-olng"],
+  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Territorial Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
 ];
 const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
@@ -871,10 +873,29 @@ function selectsToPeriod() {
   $("f-period").value = a && b ? `${a}–${b}` : (a || b || "");
 }
 ["f-period-from", "f-period-to"].forEach(id => $(id).addEventListener("change", selectsToPeriod));
-[["f-lat", "f-lng"], ["f-olat", "f-olng"]].forEach(([a, b]) => $(a).addEventListener("input", () => {
-  const m = $(a).value.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/);
-  if (m) { $(a).value = m[1]; $(b).value = m[2]; }
-}));
+function splitPastedCoords(a, b) {
+  a.addEventListener("input", () => {
+    const m = a.value.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) { a.value = m[1]; b.value = m[2]; }
+  });
+}
+splitPastedCoords($("f-lat"), $("f-lng"));
+// offices editor (regional / national offices)
+let editOffices = [];
+function readOfficeRows() {
+  editOffices = [...$("f-offices").querySelectorAll(".office-row")].map(r => ({
+    name: r.querySelector("[data-o=name]").value, lat: r.querySelector("[data-o=lat]").value, lng: r.querySelector("[data-o=lng]").value }));
+}
+function renderOfficeRows() {
+  $("f-offices").innerHTML = editOffices.map((o, i) => `<div class="office-row">
+      <input type="text" data-o="name" maxlength="120" placeholder="Office name, city" aria-label="Office ${i + 1} name" value="${esc(o.name ?? "")}">
+      <input type="text" data-o="lat" inputmode="decimal" maxlength="20" placeholder="Latitude" aria-label="Office ${i + 1} latitude" value="${esc(o.lat ?? "")}">
+      <input type="text" data-o="lng" inputmode="decimal" maxlength="20" placeholder="Longitude" aria-label="Office ${i + 1} longitude" value="${esc(o.lng ?? "")}">
+      <button type="button" class="small" data-oi="${i}" aria-label="Remove office ${i + 1}">×</button></div>`).join("") || '<span class="muted" style="font-size:12px">No offices yet.</span>';
+  $("f-offices").querySelectorAll(".office-row").forEach(r => splitPastedCoords(r.querySelector("[data-o=lat]"), r.querySelector("[data-o=lng]")));
+  $("f-offices").querySelectorAll("button[data-oi]").forEach(b => b.addEventListener("click", () => { readOfficeRows(); editOffices.splice(+b.dataset.oi, 1); renderOfficeRows(); }));
+}
+$("f-office-add").addEventListener("click", () => { readOfficeRows(); editOffices.push({ name: "", lat: "", lng: "" }); renderOfficeRows(); $("f-offices").querySelector(".office-row:last-child [data-o=name]").focus(); });
 // countries picker
 let editCountries = [];
 function renderCountryPicker() {
@@ -913,6 +934,7 @@ function setStep(n) {
       DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] ?? ""); });
       periodToSelects(t.strategyPeriod);
       editCountries = [...(t.countries || [])]; renderCountryPicker();
+      editOffices = (t.offices || []).map(o => ({ name: o.name || "", lat: o.lat ?? "", lng: o.lng ?? "" })); renderOfficeRows();
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
@@ -1000,14 +1022,17 @@ $("dlg-form").addEventListener("submit", async e => {
     if ((pf && !pt) || (!pf && pt)) { $("dlg-err").textContent = "Please choose both years for the strategy period (from and to)."; return; }
     if (pf && pt && +pt < +pf) { $("dlg-err").textContent = "The strategy period's \"to\" year can't be before the \"from\" year."; return; }
     selectsToPeriod();
-    for (const [a, b, what] of [["f-lat", "f-lng", "Territorial Headquarters"], ["f-olat", "f-olng", "office"]]) {
-      const la = $(a).value.trim(), lo = $(b).value.trim();
+    readOfficeRows();
+    const offices = editOffices.map(o => ({ name: String(o.name).trim(), lat: String(o.lat).trim(), lng: String(o.lng).trim() })).filter(o => o.name || o.lat || o.lng);
+    if (offices.some(o => !o.name)) { $("dlg-err").textContent = "Please give each office a name (or remove the empty row)."; return; }
+    for (const [la, lo, what] of [[$("f-lat").value.trim(), $("f-lng").value.trim(), "Territorial Headquarters"], ...offices.map(o => [o.lat, o.lng, `"${o.name}"`])]) {
       if ((la === "") !== (lo === "")) { $("dlg-err").textContent = `Please give both latitude and longitude for the ${what}, or leave both empty.`; return; }
       if (la !== "" && (isNaN(+la) || isNaN(+lo) || Math.abs(+la) > 90 || Math.abs(+lo) > 180)) { $("dlg-err").textContent = `The ${what} latitude must be between -90 and 90, and longitude between -180 and 180.`; return; }
     }
     if ($("f-country-in").value.trim()) addCountry();
     const vals = Object.fromEntries(DETAIL_FIELDS.map(([k, , id]) => [k, $(id).value.trim()]));
     vals.countries = editCountries;
+    vals.offices = offices.map(o => ({ name: o.name, lat: o.lat === "" ? null : +o.lat, lng: o.lng === "" ? null : +o.lng }));
     if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
     if (vals.focalEmail) vals.focalEmail = normEmail(vals.focalEmail);
@@ -1117,12 +1142,12 @@ function shiftLng(geom, shift) {
   return { ...geom, coordinates: f(geom.coordinates) };
 }
 async function renderMiniMap(t) {
-  const key = JSON.stringify([t.id, t.status, t.countries, t.lat, t.lng, t.office, t.officeLat, t.officeLng, isDark()]);
+  const key = JSON.stringify([t.id, t.status, t.countries, t.lat, t.lng, t.offices, isDark()]);
   const chips = (t.countries || []);
   $("td-countries").innerHTML = chips.length ? chips.map(c => `<span class="country-chip">${esc(c)}</span>`).join("") : '<span class="muted" style="font-size:12px">No countries recorded yet.</span>';
   $("td-geo-count").textContent = chips.length ? `${chips.length} countr${chips.length === 1 ? "y" : "ies"}` : "";
   const i = sIndex(t.status), color = MAP_HEX[i] || "#888888";
-  $("mini-key").innerHTML = `<span>${pinSvg(color, 12)}Territorial Headquarters</span>${t.office ? `<span><svg width="12" height="12" viewBox="0 0 22 22"><rect x="3" y="3" width="16" height="16" rx="3" transform="rotate(45 11 11)" fill="#24215f"/></svg>${esc(t.office)}</span>` : ""}<span><i style="display:inline-block;width:12px;height:10px;border-radius:2px;background:${color};opacity:.45;border:1px solid ${color}"></i>Countries in the territory</span>`;
+  $("mini-key").innerHTML = `<span>${pinSvg(color, 12)}Territorial Headquarters</span>${(t.offices || []).length ? `<span><svg width="12" height="12" viewBox="0 0 22 22"><rect x="3" y="3" width="16" height="16" rx="3" transform="rotate(45 11 11)" fill="#24215f"/></svg>${(t.offices || []).length > 1 ? "Regional / national offices" : esc(t.offices[0].name)}</span>` : ""}<span><i style="display:inline-block;width:12px;height:10px;border-radius:2px;background:${color};opacity:.45;border:1px solid ${color}"></i>Countries in the territory</span>`;
   if (!window.L || $("db-detail").hidden) return;
   if (!miniMap) {
     miniMap = L.map("mini-map", { scrollWheelZoom: false, zoomSnap: 0.25, worldCopyJump: false });
@@ -1162,10 +1187,11 @@ async function renderMiniMap(t) {
       .bindTooltip(`<strong>Territorial Headquarters</strong>${t.location ? `<br>${esc(t.location)}` : ""}`, { direction: "top", offset: [0, -34], className: "terr-tip" }).addTo(miniLayer);
     pts.push(L.latLng(t.lat, sh(t.lng)));
   }
-  if (typeof t.officeLat === "number" && typeof t.officeLng === "number") {
-    L.marker([t.officeLat, sh(t.officeLng)], { icon: officeIcon(), title: t.office || "Office", zIndexOffset: 900 })
-      .bindTooltip(`<strong>${esc(t.office || "Office")}</strong>`, { direction: "top", className: "terr-tip" }).addTo(miniLayer);
-    pts.push(L.latLng(t.officeLat, sh(t.officeLng)));
+  for (const o of (t.offices || [])) {
+    if (typeof o.lat !== "number" || typeof o.lng !== "number") continue;
+    L.marker([o.lat, sh(o.lng)], { icon: officeIcon(), title: o.name || "Office", zIndexOffset: 900 })
+      .bindTooltip(`<strong>${esc(o.name || "Office")}</strong>`, { direction: "top", className: "terr-tip" }).addTo(miniLayer);
+    pts.push(L.latLng(o.lat, sh(o.lng)));
   }
   if (pts.length) miniMap.fitBounds(L.latLngBounds(pts), { padding: [28, 28], maxZoom: 7 });
   else miniMap.setView([10, 100], 2);
@@ -1186,7 +1212,7 @@ function renderDetail() {
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
       ${t.status === "implementing" ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
       <div><div class="k">Territorial Headquarters</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
-      ${t.office ? `<div><div class="k">National / other office</div><div class="v">${esc(t.office)}</div></div>` : ""}
+      ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / national offices" : "Regional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
@@ -1443,12 +1469,12 @@ async function buildXLSX(downloader = "") {
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
-    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Territorial Headquarters", key: "loc", width: 30 }, { header: "THQ latitude", key: "lat", width: 11 }, { header: "THQ longitude", key: "lng", width: 11 }, { header: "National / other office", key: "office", width: 30 },
+    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Territorial Headquarters", key: "loc", width: 30 }, { header: "THQ latitude", key: "lat", width: 11 }, { header: "THQ longitude", key: "lng", width: 11 }, { header: "Regional / national offices", key: "office", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: t.office || "", loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
     r.getCell("last").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
