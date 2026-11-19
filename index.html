@@ -6,6 +6,8 @@
 <title>Community Development Strategies | ASLP</title>
 <meta name="description" content="Community Development Strategies progress across South Pacific and East Asia (SPEA) and South Asia (SASIA) territories of The Salvation Army.">
 <link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
 <script src="vendor/supabase.js"></script>
 <style>
   :root {
@@ -189,10 +191,17 @@
   .access-grid textarea { min-height: 70px; }
   .site-foot { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.8; }
   .foot-sync { color: var(--text-muted); font-size: 11px; }
-  .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; letter-spacing: .02em; padding: 7px 22px; border-radius: 999px; font-size: 14px; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+  .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; margin-left: auto; padding-left: 18px; padding-right: 18px; }
   .aslp-btn:hover { background: #c0391e; border-color: #c0391e; }
   .dl-group { align-items: center; }
-  .hdr-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .map { height: 480px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-0); z-index: 0; }
+  .map-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
+  .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .map-legend i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15); display: inline-block; }
+  .leaflet-tooltip.terr-tip { font: 12px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 8px 10px; border-radius: 8px; }
+  .leaflet-container a { color: var(--accent); }
+  @media (max-width: 700px) { .map { height: 360px; } }
+  .hdr-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; flex: 1 1 100%; }
   .dl-group { display: flex; gap: 6px; }
   .dl-group[hidden] { display: none; }
   .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
@@ -211,7 +220,6 @@
     </div>
     <div class="hdr-actions">
       <div class="dl-group">
-        <button id="upd-btn" class="aslp-btn">Update</button>
         <button id="dl-pdf" class="small primary" title="One-page PDF of the current dashboard">⬇ One-page summary (PDF)</button>
         <button id="dl-xlsx" class="small">⬇ Excel</button>
       </div>
@@ -219,6 +227,7 @@
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
+      <button id="upd-btn" class="small aslp-btn">Update</button>
     </div>
   </header>
 
@@ -246,7 +255,7 @@
         <tbody id="sum-body"></tbody>
         <tfoot><tr><td><strong>Total</strong></td><td class="num"><strong id="sum-total">0</strong></td></tr></tfoot>
       </table>
-      <div class="muted" style="font-size:12px;margin-top:10px">Click a status (here or on the chart) to filter the territory list.</div>
+      <div class="muted" style="font-size:12px;margin-top:10px">Click a status (here or on the chart) to filter the map.</div>
     </div>
     <div class="card">
       <h2 id="chart-title">Territories by status</h2>
@@ -262,18 +271,14 @@
 
   <section class="card" style="margin-bottom:16px">
     <div class="toolbar">
-      <h2 style="margin:0">Territories</h2>
+      <h2 style="margin:0">Territory map</h2>
       <span id="filter-chip"></span>
       <span class="spacer"></span>
-      <input type="search" id="search" placeholder="Search territory or focal person" aria-label="Search territories">
+      <span class="db-count" id="map-count"></span>
     </div>
-    <div class="tblwrap">
-      <table>
-        <thead><tr><th>Territory</th><th>Zone · CWG</th><th>Focal person</th><th>Target</th><th>Status</th><th>Last updated</th></tr></thead>
-        <tbody id="terr-body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
-      </table>
-    </div>
-    <div class="muted" style="font-size:12px;margin-top:10px">Click a territory to see its update history.</div>
+    <div id="map" class="map" role="region" aria-label="Map of territories coloured by CD Strategy status"></div>
+    <div class="map-legend" id="map-legend"></div>
+    <div class="muted" style="font-size:12px;margin-top:8px">Each dot is a territory's headquarters, coloured by CD Strategy status. Hover for details and click a dot to open its update history. The zone/CWG buttons and status filters above also apply to the map.</div>
   </section>
   </div>
 
@@ -356,6 +361,12 @@
           <div class="field" id="f-target-wrap"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
           <div class="field"><label for="f-doc">Document link</label><input type="url" id="f-doc" maxlength="1000" placeholder="https://… (SharePoint, OneDrive, Google Drive)"></div>
           <div class="field"><label for="f-cwg">CWG</label><input type="text" id="f-cwg" maxlength="60" list="cwg-options"><datalist id="cwg-options"></datalist></div>
+          <div class="field"><label for="f-loc">Map location (headquarters)</label><input type="text" id="f-loc" maxlength="120" placeholder="e.g. Malate, Manila, Philippines"></div>
+          <div class="two">
+            <div class="field"><label for="f-lat">Latitude</label><input type="text" id="f-lat" inputmode="decimal" maxlength="20" placeholder="e.g. 14.5650"></div>
+            <div class="field"><label for="f-lng">Longitude</label><input type="text" id="f-lng" inputmode="decimal" maxlength="20" placeholder="e.g. 120.9900"></div>
+          </div>
+          <div class="hint" style="margin-top:4px">Tip: in Google Maps, right-click the headquarters and click the numbers shown at the top to copy them. Paste them into Latitude — both boxes fill in automatically.</div>
         </div>
       </div>
       <div class="err" id="dlg-err"></div>
@@ -472,6 +483,7 @@ function applyMode() {
   $("tab-database").classList.toggle("on", currentView === "database");
   if (summaryMode) { statusFilter = null; }
   try { renderAll(); } catch (e) {}
+  if (map && currentView === "dashboard") setTimeout(() => map.invalidateSize(), 60);
 }
 window.addEventListener("hashchange", applyMode);
 $("tab-dashboard").addEventListener("click", e => { e.preventDefault(); if (location.hash && location.hash !== "#summary") location.hash = ""; applyMode(); });
@@ -652,33 +664,70 @@ function renderChart() {
 function toggleFilter(k) { statusFilter = statusFilter === k ? null : k; renderSummary(); renderChart(); renderTable(); }
 
 function renderTable() {
-  const q = $("search").value.trim().toLowerCase();
   const chip = $("filter-chip");
   if (statusFilter) {
     const i = sIndex(statusFilter);
     chip.innerHTML = `<span class="chip"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(SHORT[i])}<button aria-label="Clear filter">×</button></span>`;
     chip.querySelector("button").onclick = () => toggleFilter(statusFilter);
   } else chip.innerHTML = "";
-  const rows = viewTerr()
-    .filter(t => !statusFilter || t.status === statusFilter)
-    .filter(t => !q || (t.name || "").toLowerCase().includes(q) || (t.focal || "").toLowerCase().includes(q))
-    .sort((a, b) => terrRank(a) - terrRank(b) || (a.name || "").localeCompare(b.name || ""));
-  const body = $("terr-body");
-  if (!territories.length) { body.innerHTML = `<tr><td colspan="6" class="muted">No territories yet.</td></tr>`; return; }
-  if (!rows.length) { body.innerHTML = `<tr><td colspan="6" class="muted">No territories match.</td></tr>`; return; }
-  body.innerHTML = rows.map(t => {
-    const i = sIndex(t.status);
-    return `<tr class="clickable" data-tid="${esc(t.id)}" tabindex="0">
-      <td><a class="tname" href="#territory-${esc(t.id)}">${esc(t.name)}</a></td>
-      <td class="nowrap">${esc(cwgOf(t))}</td>
-      <td>${t.focal ? esc(t.focal) : '<span class="muted">—</span>'}</td>
-      <td>${esc(targetOf(t))}</td>
-      <td>${i >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(STATUSES[i].label)}</span>` : '<span class="muted">—</span>'}</td>
-      <td>${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : '<span class="muted">—</span>'}</td>
-    </tr>`;
-  }).join("");
-  wireRows(body);
+  renderMap();
 }
+
+/* ---------- territory map (Leaflet) ---------- */
+let map = null, tileLayer = null, markerLayer = null, lastFitKey = "";
+const MAP_HEX = ["#24215f", "#0a84ff", "#f5c400", "#c0391e", "#005fc0", "#e04c1e"];
+function isDark() {
+  const a = document.documentElement.getAttribute("data-theme");
+  return a ? a === "dark" : window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function setTiles() {
+  if (!map) return;
+  const style = isDark() ? "dark_all" : "light_all";
+  if (tileLayer && tileLayer._style === style) return;
+  if (tileLayer) map.removeLayer(tileLayer);
+  tileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
+    subdomains: "abcd", maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+  }).addTo(map);
+  tileLayer._style = style;
+}
+function ensureMap() {
+  if (map || !window.L || !$("map") || $("view-dashboard").hidden) return;
+  map = L.map("map", { worldCopyJump: true, scrollWheelZoom: false, minZoom: 2, zoomSnap: 0.5 }).setView([10, 100], 3);
+  setTiles();
+  markerLayer = L.layerGroup().addTo(map);
+  map.on("click focus", () => map.scrollWheelZoom.enable());
+  map.on("mouseout", () => map.scrollWheelZoom.disable());
+  $("map-legend").innerHTML = STATUSES.map((st, i) => `<span><i style="background:${MAP_HEX[i]}"></i>${esc(SHORT[i])}</span>`).join("");
+}
+function renderMap() {
+  ensureMap();
+  if (!map) return;
+  markerLayer.clearLayers();
+  const list = viewTerr().filter(t => !statusFilter || t.status === statusFilter);
+  const pts = [];
+  list.forEach(t => {
+    if (typeof t.lat !== "number" || typeof t.lng !== "number") return;
+    const i = sIndex(t.status);
+    const mk = L.circleMarker([t.lat, t.lng], { radius: 9, weight: 2, color: "#ffffff", fillColor: MAP_HEX[i] || "#888888", fillOpacity: 0.95 });
+    mk.bindTooltip(`<strong>${esc(t.name)}</strong><br>${i >= 0 ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${MAP_HEX[i]};margin-right:5px"></span>${esc(STATUSES[i].label)}` : ""}`
+      + `<br><span style="color:#666">${esc(zoneLabel(zoneOf(t)))} · ${esc(cwgOf(t))}</span>`
+      + (t.location ? `<br><span style="color:#666">${esc(t.location)}</span>` : "")
+      + (targetOf(t) ? `<br><span style="color:#666">Target: ${esc(targetOf(t))}</span>` : ""), { direction: "top", offset: [0, -8], className: "terr-tip" });
+    mk.on("click", () => openTerritory(t.id));
+    mk.addTo(markerLayer);
+    pts.push([t.lat, t.lng]);
+  });
+  const missing = list.length - pts.length;
+  $("map-count").textContent = `${pts.length} territor${pts.length === 1 ? "y" : "ies"}${missing ? ` · ${missing} without a map location` : ""}`;
+  const key = pts.map(p => p.join(",")).join("|");
+  if (key !== lastFitKey && pts.length) {
+    lastFitKey = key;
+    map.fitBounds(pts, { padding: [36, 36], maxZoom: pts.length === 1 ? 6 : 5 });
+  }
+}
+document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => setTimeout(setTiles, 0)));
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", setTiles); } catch (e) {}
 
 function logSort(a, b) { return (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0); }
 
@@ -714,7 +763,6 @@ function renderLog() {
   el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openLogEdit(b.dataset.edit)));
   el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => openLogDelete(b.dataset.del)));
 }
-$("search").addEventListener("input", renderTable);
 
 
 /* ---------- names ---------- */
@@ -723,7 +771,7 @@ async function resolveNames() {}
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
   ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
-  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"],
+  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Map location", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
 ];
 const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
@@ -754,6 +802,10 @@ function selectsToPeriod() {
   $("f-period").value = a && b ? `${a}–${b}` : (a || b || "");
 }
 ["f-period-from", "f-period-to"].forEach(id => $(id).addEventListener("change", selectsToPeriod));
+$("f-lat").addEventListener("input", () => {
+  const m = $("f-lat").value.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (m) { $("f-lat").value = m[1]; $("f-lng").value = m[2]; }
+});
 $("f-status").innerHTML = STATUSES.map(st => `<option value="${st.key}">${esc(st.label)}</option>`).join("");
 function setStep(n) {
   ed.step = n;
@@ -773,7 +825,7 @@ function setStep(n) {
     $("status-saved").textContent = ed.statusSaved ? "Status update saved." : "";
     if (role) {
       $("details-locked").hidden = true; $("details-form").hidden = false;
-      DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] || ""); });
+      DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] ?? ""); });
       periodToSelects(t.strategyPeriod);
       $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
@@ -861,6 +913,9 @@ $("dlg-form").addEventListener("submit", async e => {
     if ((pf && !pt) || (!pf && pt)) { $("dlg-err").textContent = "Please choose both years for the strategy period (from and to)."; return; }
     if (pf && pt && +pt < +pf) { $("dlg-err").textContent = "The strategy period's \"to\" year can't be before the \"from\" year."; return; }
     selectsToPeriod();
+    const la = $("f-lat").value.trim(), lo = $("f-lng").value.trim();
+    if ((la === "") !== (lo === "")) { $("dlg-err").textContent = "Please give both latitude and longitude for the map, or leave both empty."; return; }
+    if (la !== "" && (isNaN(+la) || isNaN(+lo) || Math.abs(+la) > 90 || Math.abs(+lo) > 180)) { $("dlg-err").textContent = "Latitude must be a number between -90 and 90, and longitude between -180 and 180."; return; }
     const vals = Object.fromEntries(DETAIL_FIELDS.map(([k, , id]) => [k, $(id).value.trim()]));
     if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
@@ -965,6 +1020,7 @@ function renderDetail() {
       ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
       ${t.status === "implementing" ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
+      <div><div class="k">Location</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
@@ -1210,12 +1266,12 @@ async function buildXLSX() {
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
-    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 },
+    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Location", key: "loc", width: 30 }, { header: "Latitude", key: "lat", width: 11 }, { header: "Longitude", key: "lng", width: 11 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
     r.getCell("last").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
