@@ -628,7 +628,7 @@
       <div id="adlg-sent" class="ok-note" hidden></div>
       <div id="adlg-out" hidden></div>
       <div class="err" id="adlg-err"></div>
-      <div class="dlg-help">Having trouble signing in? Contact your CWG lead for support.</div>
+      <div class="dlg-help" id="adlg-help">Having trouble signing in? Contact your CWG lead for support.</div>
     </div>
     <div class="dlg-actions">
       <button type="button" id="adlg-cancel">Close</button>
@@ -2004,6 +2004,9 @@ function renderRoleHelp() {
     : r === "focal"
     ? "<p>For each territory's registered CD focal person.</p><p>Once signed in, you can update your territory's status <em>and</em> CD Strategy details, and see its contact details.</p><p>Backup persons don't need to sign in. They update the status with the Update button.</p>"
     : "Choose how you are signing in.";
+  $("adlg-help").innerHTML = r === "admin"
+    ? "Having trouble signing in as an Admin? Contact the <strong>SWI-SAID Asia Programme Manager</strong>."
+    : "Having trouble signing in? Contact your <strong>CWG lead</strong> for support.";
   $("a-email").placeholder = r === "focal" ? "your registered focal person email" : "name@salvationarmy.org";
 }
 document.querySelectorAll('input[name="a-role"]').forEach(x => x.addEventListener("change", () => { try { localStorage.setItem("cd-signin-role", x.value); } catch (e) {} $("adlg-err").textContent = ""; renderRoleHelp(); }));
@@ -2037,7 +2040,7 @@ $("adlg-form").addEventListener("submit", async e => {
   $("adlg-go").disabled = false;
   if (!ok) {
     $("adlg-err").textContent = role === "admin"
-      ? "This email isn't on the Admin list. No sign-in email was sent. Ask a programme coordinator to add you in the Admin tab."
+      ? "This email isn't on the Admin list, so no sign-in email was sent. Please contact the SWI-SAID Asia Programme Manager."
       : "This email isn't registered as a territory's CD focal person. No sign-in email was sent. Check the email, or ask your programme coordinator or CWG lead to register you in your territory's CD Strategy details.";
     return;
   }
