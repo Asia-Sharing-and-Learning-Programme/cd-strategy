@@ -1282,7 +1282,14 @@ $("adlg-form").addEventListener("submit", async e => {
   if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
   $("adlg-go").disabled = true; $("adlg-err").textContent = "";
   const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-  if (error) { $("adlg-go").disabled = false; $("adlg-err").textContent = error.message || "Couldn't send the sign-in email."; return; }
+  if (error) {
+    $("adlg-go").disabled = false;
+    const m = String(error.message || "");
+    $("adlg-err").textContent = /rate limit/i.test(m) ? "Too many sign-in emails were sent in the last hour. Please wait about an hour and try again — the most recent link already in your inbox may still work."
+      : /not authorized|not allowed/i.test(m) ? "Sign-in emails can't be sent to this address yet. Ask the site admin to finish the email setup."
+      : (m || "Couldn't send the sign-in email.");
+    return;
+  }
   $("adlg-sent").hidden = false; $("adlg-sent").textContent = `Check ${email} for a sign-in link, then open it in this browser.`;
 });
 
