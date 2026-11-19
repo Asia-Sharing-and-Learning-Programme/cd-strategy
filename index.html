@@ -264,6 +264,12 @@
   .lead-row input, .lead-row select { width: 100%; padding: 5px 8px; font-size: 12.5px; }
   @media (max-width: 720px) { .lead-row { grid-template-columns: 1fr 1fr; } .lead-row .lead-cwg { grid-column: 1 / -1; } }
   .ct-table input { width: 100%; min-width: 170px; padding: 5px 8px; font-size: 12.5px; }
+  .help { font-size: 12.5px; line-height: 1.55; }
+  .help p { margin: 0 0 6px; } .help p:last-child { margin-bottom: 0; }
+  .help ul, .help ol { margin: 0 0 6px; padding-left: 18px; } .help li { margin: 2px 0; }
+  .ok-note p { margin: 0 0 4px; } .ok-note p:last-child { margin-bottom: 0; }
+  .signin-warn p, .lock p { margin: 0 0 6px; } .signin-warn p:last-child, .lock p:last-child { margin-bottom: 0; }
+  .lock ol { margin: 0 0 6px; padding-left: 18px; } .lock li { margin: 3px 0; }
   .scope-pick { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
   .scope-opt { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: 400; font-size: 13px; }
   .scope-opt.indent { margin-left: 22px; }
@@ -404,7 +410,7 @@
   <div id="view-admin" hidden>
       <section class="card" id="access-card" hidden>
         <h2 style="margin-bottom:4px" id="acc-title">Admins</h2>
-        <div class="muted" id="acc-help" style="font-size:12px;line-height:1.6">Everyone listed here can <strong>Sign in → Admin</strong>. Admins can see contact details and emails, edit or delete history entries, manage these lists and set each territory's focal and backup persons (below). They can also update CD Strategy details: programme coordinators and other admins for all territories, CWG leads for their CWG's territories. One email per line. You can't remove your own email.</div>
+        <div class="muted help" id="acc-help"></div>
         <div class="access-grid">
           <div class="field"><label for="acc-coord">Programme coordinators</label><textarea id="acc-coord" placeholder="one email per line — add as many as needed"></textarea></div>
           <div class="field"><label for="acc-other">Other admins</label><textarea id="acc-other" placeholder="one email per line — people who are not coordinators but need admin access"></textarea></div>
@@ -414,18 +420,18 @@
       </section>
       <section class="card" id="leads-card" style="margin-top:16px" hidden>
         <h2 style="margin-bottom:4px">CWG lead details</h2>
-        <div class="muted" style="font-size:12px;line-height:1.6;margin-bottom:8px">Shown publicly on the Database tab next to each CWG, e.g. "CWG Lead: Name" with a tag for the territory they come from. Emails are never shown publicly.</div>
+        <div class="muted help" style="margin-bottom:8px"><p>These details appear publicly on the Database tab next to each CWG, e.g. "CWG Lead: Name" with a tag for the territory they come from.</p><p>Emails are never shown publicly.</p></div>
         <div id="leads-rows"></div>
       </section>
       <section class="card" id="contacts-card" style="margin-top:16px" hidden>
         <div class="toolbar"><h2 style="margin:0">Focal &amp; backup persons</h2><span class="spacer"></span><span class="db-count" id="ct-count"></span></div>
-        <div class="muted" style="font-size:12px;line-height:1.6;margin-bottom:8px">The <strong>focal person</strong> can Sign in → CD Focal Person and update their territory's status and CD Strategy details. The <strong>backup person</strong> can update the status only (no sign-in needed). Leave a box empty to remove someone. Every change is recorded in the territory's update history.</div>
+        <div class="muted help" style="margin-bottom:8px"><ul><li><strong>Focal person:</strong> signs in (Sign in → CD Focal Person) and updates their territory's status and CD Strategy details.</li><li><strong>Backup person:</strong> updates the status only, with no sign-in needed.</li></ul><p>To remove someone, clear their box and save. Every change is recorded in the territory's update history.</p></div>
         <div class="tblwrap"><table class="ct-table"><thead><tr><th>Territory</th><th>CWG</th><th>Focal person</th><th>Focal person email</th><th>Backup person email</th></tr></thead><tbody id="ct-body"></tbody></table></div>
         <div style="margin-top:12px;display:flex;gap:8px;align-items:center"><button class="primary small" id="ct-save">Save focal &amp; backup persons</button><span class="muted" id="ct-note" style="font-size:12px"></span></div>
       </section>
       <section class="card" id="dl-card" style="margin-top:16px" hidden>
         <div class="toolbar"><h2 style="margin:0">Excel downloads</h2><span class="spacer"></span><span class="db-count" id="dl-count"></span></div>
-        <div class="muted" style="font-size:12px;margin-bottom:8px">Everyone who downloads the Excel file enters their email first. Each download is listed here and, once the email service is set up, sent as an email notification to the ASLP team.</div>
+        <div class="muted help" style="margin-bottom:8px"><p>Everyone who downloads the Excel file enters their email first.</p><p>Each download is listed here and emailed to the ASLP team as a notification.</p></div>
         <div class="tblwrap"><table><thead><tr><th>Date</th><th>Email</th><th>View</th><th>Email sent</th></tr></thead><tbody id="dl-body"></tbody></table></div>
       </section>
   </div>
@@ -444,7 +450,7 @@
       <div id="step-0">
         <div class="field"><label for="f-email">Your registered email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div class="field" id="terr-pick" hidden><label for="f-terr">Territory</label><select id="f-terr"></select></div>
-        <div class="hint">Only registered people can update: each territory's <strong>focal person</strong> (status and CD Strategy details) and its <strong>backup person</strong> (status only). CWG leads and programme coordinators can update their territories too. To edit CD Strategy details you must be <strong>signed in</strong> first (Sign in → CD Focal Person or Admin). Your email is recorded with every update.</div>
+        <div class="hint help"><p><strong>Who can update</strong></p><ul><li><strong>Focal person:</strong> status and CD Strategy details</li><li><strong>Backup person:</strong> status only</li><li><strong>CWG leads and programme coordinators:</strong> their territories</li></ul><p>To edit CD Strategy details, <strong>sign in first</strong> (Sign in → CD Focal Person or Admin).</p><p>Your email is recorded with every update.</p></div>
       </div>
       <div id="step-1" hidden>
         <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select></div>
@@ -482,7 +488,7 @@
             <div class="field"><label for="f-lat">Latitude</label><input type="text" id="f-lat" inputmode="decimal" maxlength="20" placeholder="e.g. 14.5650"></div>
             <div class="field"><label for="f-lng">Longitude</label><input type="text" id="f-lng" inputmode="decimal" maxlength="20" placeholder="e.g. 120.9900"></div>
           </div>
-          <div class="hint" style="margin-top:4px">Tip: in Google Maps, right-click the headquarters and click the numbers shown at the top to copy them. Paste them into Latitude — both boxes fill in automatically.</div>
+          <div class="hint help" style="margin-top:4px"><p><strong>Tip:</strong> in Google Maps, right-click the headquarters and click the numbers shown at the top to copy them.</p><p>Paste them into Latitude, and both boxes fill in automatically.</p></div>
           <div class="field"><label>Regional / divisional / national offices <span class="muted" style="font-weight:400">(optional, e.g. Divisional or Regional Headquarters, India National Office)</span></label>
             <div id="f-offices" class="office-rows"></div>
             <div><button type="button" class="small" id="f-office-add">+ Add office</button></div>
@@ -569,7 +575,7 @@
             <label class="role-opt"><input type="radio" name="a-role" value="focal"><span><strong>CD Focal Person</strong><small>A territory's registered focal person</small></span></label>
           </div>
         </div>
-        <div class="muted" id="a-role-help" style="font-size:13px;margin-top:4px"></div>
+        <div class="muted help" id="a-role-help" style="margin-top:6px"></div>
         <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div class="signin-warn" id="adlg-limit"></div>
       </div>
@@ -1089,8 +1095,8 @@ function setStep(n) {
     } else {
       $("details-form").hidden = true; $("details-locked").hidden = false;
       $("details-locked").innerHTML = ed.needsSignin
-        ? `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}To edit the CD Strategy details of ${esc(t.name)}, please <strong>sign in first</strong>: close this box, click <strong>Sign in</strong>, choose <strong>${/coordinator|CWG lead/i.test(ed.statusRole || "") ? "Admin" : "CD Focal Person"}</strong> and open the link we email to ${esc(ed.email)}. Then click <strong>Update</strong> again.`
-        : `${ed.statusSaved ? "<strong>Your status update has been saved.</strong> " : ""}As the backup person for ${esc(t.name)}, you can update the status only. The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.`;
+        ? `${ed.statusSaved ? "<p><strong>Your status update has been saved.</strong></p>" : ""}<p>To edit the CD Strategy details of ${esc(t.name)}, please <strong>sign in first</strong>:</p><ol><li>Close this box and click <strong>Sign in</strong>.</li><li>Choose <strong>${/coordinator|CWG lead/i.test(ed.statusRole || "") ? "Admin" : "CD Focal Person"}</strong> and open the link we email to ${esc(ed.email)}.</li><li>Click <strong>Update</strong> again.</li></ol>`
+        : `${ed.statusSaved ? "<p><strong>Your status update has been saved.</strong></p>" : ""}<p>As the backup person for ${esc(t.name)}, you can update the status only.</p><p>The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.</p>`;
       save.textContent = "Done"; skip.hidden = true;
     }
   }
@@ -1223,8 +1229,8 @@ function renderAccess() {
   $("acc-coord").closest(".field").hidden = leadOnly; $("acc-other").closest(".field").hidden = leadOnly;
   $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG lead` : "Admins";
   $("acc-help").innerHTML = leadOnly
-    ? `As a CWG lead you can see who leads <strong>${esc(cl.join(" and "))}</strong>, and manage your territories' focal and backup persons below. Only programme coordinators and other admins can change who has admin access.`
-    : `Everyone listed here can <strong>Sign in → Admin</strong>. <strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything (enter one email per line, as many as needed). Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories. You can't remove your own email.`
+    ? `<p>As a CWG lead, you can see who leads <strong>${esc(cl.join(" and "))}</strong>.</p><p>Below, you can manage your territories' focal and backup persons.</p><p>Only programme coordinators and other admins can change who has admin access.</p>`
+    : `<p>Everyone listed here can <strong>Sign in → Admin</strong>.</p><ul><li><strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. Enter one email per line, as many as needed.</li><li>Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories.</li></ul><p>You can't remove your own email.</p>`
   $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
   $("acc-other").value = (accessCfg.otherAdmins || []).join("\n");
   $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead</label><input type="email" data-cwg="${esc(c)}" maxlength="200" placeholder="one email" value="${esc(((accessCfg.cwgLeads || {})[c] || [])[0] || "")}" ${leadOnly ? "readonly" : ""}></div>`).join("");
@@ -1943,9 +1949,9 @@ function selectedRole() { const r = document.querySelector('input[name="a-role"]
 function renderRoleHelp() {
   const r = selectedRole();
   $("a-role-help").innerHTML = r === "admin"
-    ? "For programme coordinators and CWG leads. Admins can see contact details, edit or delete history entries, and manage who can sign in (Admin tab)."
+    ? "<p>For programme coordinators, other admins and CWG leads.</p><p>Admins can see contact details, edit or delete history entries, and manage who can sign in (Admin tab).</p>"
     : r === "focal"
-    ? "For each territory's registered CD focal person. Once signed in, you can update your territory's status <em>and</em> CD Strategy details, and see its contact details. Backup persons don't need to sign in — they update the status with the Update button."
+    ? "<p>For each territory's registered CD focal person.</p><p>Once signed in, you can update your territory's status <em>and</em> CD Strategy details, and see its contact details.</p><p>Backup persons don't need to sign in. They update the status with the Update button.</p>"
     : "Choose how you are signing in.";
   $("a-email").placeholder = r === "focal" ? "your registered focal person email" : "name@salvationarmy.org";
 }
@@ -1958,8 +1964,8 @@ let signinTimer = null;
 function renderSigninLimit() {
   const times = signinTimes(), used = times.length, left = Math.max(0, SIGNIN_PER_HOUR - used);
   const last = times.length ? Math.max(...times) : 0, wait = Math.ceil((last + SIGNIN_COOLDOWN_S * 1000 - Date.now()) / 1000);
-  let html = `<strong>Limit: ${SIGNIN_PER_HOUR} sign-in emails per hour</strong> for the whole site (shared by everyone signing in). Each link works once and expires after 1 hour. Check your spam folder before asking for another.`;
-  if (used) html += `<br>From this browser: <strong>${used} of ${SIGNIN_PER_HOUR}</strong> used in the last hour${left ? ` — ${left} left` : ` — please wait until ${new Date(Math.min(...times) + 3600_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}.`;
+  let html = `<p><strong>Limit: ${SIGNIN_PER_HOUR} sign-in emails per hour</strong> for the whole site, shared by everyone signing in.</p><p>Each link works once and expires after 1 hour. Check your spam folder before asking for another.</p>`;
+  if (used) html += `<p>From this browser: <strong>${used} of ${SIGNIN_PER_HOUR}</strong> used in the last hour${left ? ` — ${left} left` : ` — please wait until ${new Date(Math.min(...times) + 3600_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}.</p>`;
   $("adlg-limit").innerHTML = html;
   clearTimeout(signinTimer);
   if (!viewer.email && wait > 0) {
@@ -1996,7 +2002,7 @@ $("adlg-form").addEventListener("submit", async e => {
     return;
   }
   noteSignin(); renderSigninLimit();
-  $("adlg-sent").hidden = false; $("adlg-sent").textContent = `Sign-in link sent to ${email}. Open the newest email (check spam too). Please don't request another link unless it hasn't arrived after a few minutes.`;
+  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${esc(email)}.</strong></p><p>Open the newest email (check spam too).</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>`;
 });
 
 applyMode();
