@@ -352,8 +352,8 @@
   </div>
   <div id="view-admin" hidden>
       <section class="card" id="access-card" hidden>
-        <h2 style="margin-bottom:4px">Admins</h2>
-        <div class="muted" style="font-size:12px;line-height:1.6">Everyone listed here can <strong>Sign in → Admin</strong>. Admins can see contact details and emails, edit or delete history entries, manage these lists and set each territory's focal and backup persons (below). They can also update CD Strategy details: programme coordinators and other admins for all territories, CWG leads for their CWG's territories. One email per line. You can't remove your own email.</div>
+        <h2 style="margin-bottom:4px" id="acc-title">Admins</h2>
+        <div class="muted" id="acc-help" style="font-size:12px;line-height:1.6">Everyone listed here can <strong>Sign in → Admin</strong>. Admins can see contact details and emails, edit or delete history entries, manage these lists and set each territory's focal and backup persons (below). They can also update CD Strategy details: programme coordinators and other admins for all territories, CWG leads for their CWG's territories. One email per line. You can't remove your own email.</div>
         <div class="access-grid">
           <div class="field"><label for="acc-coord">Programme coordinators</label><textarea id="acc-coord" placeholder="one per line"></textarea></div>
           <div class="field"><label for="acc-other">Other admins</label><textarea id="acc-other" placeholder="one per line (not coordinators, but need admin access)"></textarea></div>
@@ -540,7 +540,9 @@ let statusFilter = null;
 let names = {};
 
 const $ = id => document.getElementById(id);
-let publicMode = false, isEditor = false, loadedOnce = false;
+let publicMode = false, isEditor = false, isFullAdmin = false, loadedOnce = false;
+// CWG leads are admins only for their own CWG's territories
+const canAdminTerr = id => isFullAdmin || (isEditor && (viewer.lead_cwgs || []).includes((territories.find(x => x.id === id) || {}).cwg));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const fmtDate = d => {
   if (!d) return "";
@@ -855,7 +857,7 @@ function renderLog() {
           : `<div>${from && fi !== ti ? `${from}<span class="arrow">→</span>` : ""}${to}${fi === ti ? ' <span class="muted" style="font-size:12px">(status unchanged)</span>' : ""}</div>`}
         ${l.note ? `<div class="note">${esc(l.note)}</div>` : ""}
         <div class="meta">${who ? `Logged by ${esc(who)} · ` : ""}${recorded ? `recorded ${esc(recorded)}` : ""}${l.editedAt ? ` · <span class="edited">edited ${esc(new Date(l.editedAt).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }))}${l.editedBy && names[l.editedBy] ? " by " + esc(names[l.editedBy]) : ""}</span>` : ""}</div>
-        ${isEditor && !summaryMode ? `<div class="log-actions">${isDet ? "" : `<button data-edit="${esc(l.id)}">Edit</button>`}<button class="danger" data-del="${esc(l.id)}">Delete</button></div>` : ""}
+        ${isEditor && !summaryMode && canAdminTerr(l.territoryId) ? `<div class="log-actions">${isDet ? "" : `<button data-edit="${esc(l.id)}">Edit</button>`}<button class="danger" data-del="${esc(l.id)}">Delete</button></div>` : ""}
       </div></div>`;
   }).join("");
   el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openLogEdit(b.dataset.edit)));
@@ -1102,7 +1104,13 @@ function renderAccess() {
   const show = !!(db && isEditor);
   card.hidden = !show;
   if (!show || card.dataset.editing === "1") return;
-  const cl = cwgList().filter(c => c !== UNASSIGNED);
+  const leadOnly = accessCfg.scope === "cwg";
+  const cl = leadOnly ? (accessCfg.leadCwgs || []) : cwgList().filter(c => c !== UNASSIGNED);
+  $("acc-coord").closest(".field").hidden = leadOnly; $("acc-other").closest(".field").hidden = leadOnly;
+  $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG leads` : "Admins";
+  $("acc-help").innerHTML = leadOnly
+    ? `As a CWG lead you manage <strong>${esc(cl.join(" and "))}</strong> only: your CWG's lead emails here, and your territories' focal and backup persons below. Programme coordinators and other admins manage everything else. One email per line. You can't remove your own email.`
+    : `Everyone listed here can <strong>Sign in → Admin</strong>. <strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. <strong>CWG leads</strong> can only manage their own CWG: its lead emails, its territories' focal and backup persons, CD Strategy details and history. One email per line. You can't remove your own email.`;
   $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
   $("acc-other").value = (accessCfg.otherAdmins || []).join("\n");
   $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead email(s)</label><textarea data-cwg="${esc(c)}" placeholder="one per line">${esc(((accessCfg.cwgLeads || {})[c] || []).join("\n"))}</textarea></div>`).join("");
@@ -1139,10 +1147,11 @@ $("ct-save").addEventListener("click", async () => {
 });
 $("acc-save").addEventListener("click", async () => {
   const card = $("access-card"), b = $("acc-save");
-  const cfg = { ...accessCfg, coordinators: splitEmails($("acc-coord").value), otherAdmins: splitEmails($("acc-other").value), cwgLeads: {}, updatedAt: Date.now() };
+  const leadOnly = accessCfg.scope === "cwg";
+  const cfg = { ...accessCfg, coordinators: leadOnly ? accessCfg.coordinators : splitEmails($("acc-coord").value), otherAdmins: leadOnly ? accessCfg.otherAdmins : splitEmails($("acc-other").value), cwgLeads: {}, updatedAt: Date.now() };
   card.querySelectorAll("textarea[data-cwg]").forEach(ta => { cfg.cwgLeads[ta.dataset.cwg] = splitEmails(ta.value); });
   b.disabled = true;
-  try { await rpc("admin_set_access", { p_coordinators: cfg.coordinators, p_cwg_leads: cfg.cwgLeads, p_other_admins: cfg.otherAdmins }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Admins saved"); }
+  try { await rpc("admin_set_access", { p_coordinators: leadOnly ? [] : cfg.coordinators, p_cwg_leads: cfg.cwgLeads, p_other_admins: leadOnly ? null : cfg.otherAdmins }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Admins saved"); }
   catch (err) { toast(errMsg(err)); }
   finally { b.disabled = false; }
 });
@@ -1652,8 +1661,8 @@ $("xdlg-form").addEventListener("submit", async e => {
 let downloadsLog = [];
 const fmtStamp = ms => ms ? new Date(ms).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 function renderDownloads() {
-  const card = $("dl-card"); card.hidden = !isEditor;
-  if (!isEditor) return;
+  const card = $("dl-card"); card.hidden = !isFullAdmin;
+  if (!isFullAdmin) return;
   $("dl-count").textContent = downloadsLog.length ? `${downloadsLog.length} download${downloadsLog.length === 1 ? "" : "s"}` : "";
   $("dl-body").innerHTML = downloadsLog.length ? downloadsLog.map(d => `<tr><td class="nowrap">${esc(fmtStamp(d.at))}</td><td>${esc(d.email)}</td><td>${esc(d.filter || "")}</td><td>${d.notified ? "Yes" : '<span class="muted">Not yet</span>'}</td></tr>`).join("")
     : `<tr><td colspan="4" class="muted">No Excel downloads yet.</td></tr>`;
@@ -1665,12 +1674,13 @@ async function load() {
     logs = d.log || [];
     viewer = d.viewer || viewer;
     isEditor = !!viewer.is_coordinator;
+    isFullAdmin = !!viewer.is_full_admin;
     if (viewer.email) { try { myTerrs = await rpc("get_my_territories", { p_email: viewer.email }) || []; } catch (e) { myTerrs = []; } } else myTerrs = [];
     loadedOnce = true;
     banner("");
     if (isEditor) {
-      try { const a = await rpc("admin_get_access"); accessCfg = { coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {}, otherAdmins: a.otherAdmins || [], contacts: a.contacts || [] }; } catch (e) {}
-      try { downloadsLog = await rpc("admin_get_downloads", { p_limit: 200 }) || []; } catch (e) { downloadsLog = []; }
+      try { const a = await rpc("admin_get_access"); accessCfg = { scope: a.scope || "all", leadCwgs: a.leadCwgs || [], coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {}, otherAdmins: a.otherAdmins || [], contacts: a.contacts || [] }; } catch (e) {}
+      if (isFullAdmin) { try { downloadsLog = await rpc("admin_get_downloads", { p_limit: 200 }) || []; } catch (e) { downloadsLog = []; } } else downloadsLog = [];
     }
     renderDownloads();
     applyMode(); renderAuth();
@@ -1691,7 +1701,7 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-out").hidden = !signedIn;
   const focalNames = (viewer.focal_of || []).map(id => (territories.find(x => x.id === id) || { name: id }).name);
   $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>.</div><ul style="margin:8px 0 0 18px;padding:0;font-size:13px;line-height:1.6">`
-    + (isEditor ? `<li><strong>Admin</strong> (${esc(viewer.role || "admin")}) — open the <a href="#admin" id="go-admin">Admin</a> tab to manage who can sign in.</li>` : "")
+    + (isEditor ? `<li><strong>Admin</strong> (${esc(viewer.role || "admin")})${isFullAdmin ? " — full access to all territories" : ` — for ${esc((viewer.lead_cwgs || []).join(" and "))} territories only`}. Open the <a href="#admin" id="go-admin">Admin</a> tab.</li>` : "")
     + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
     + (!isEditor && !focalNames.length ? `<li>This email isn't registered as an Admin or a CD Focal Person. Ask a programme coordinator to register it.</li>` : "")
     + `</ul>` : "";
