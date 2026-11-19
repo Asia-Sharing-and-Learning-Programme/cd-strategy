@@ -338,10 +338,12 @@
             <div class="field"><label for="f-femail">Focal person email</label><input type="email" id="f-femail" maxlength="200"></div>
             <div class="field"><label for="f-fphone">Focal person phone</label><input type="text" id="f-fphone" maxlength="40"></div>
           </div>
+          <input type="hidden" id="f-period">
           <div class="two">
-            <div class="field"><label for="f-period">Strategy period</label><input type="text" id="f-period" maxlength="40" placeholder="e.g. 2026–2030"></div>
-            <div class="field"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
+            <div class="field"><label for="f-period-from">Strategy period: from</label><select id="f-period-from"></select></div>
+            <div class="field"><label for="f-period-to">Strategy period: to</label><select id="f-period-to"></select></div>
           </div>
+          <div class="field"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
           <div class="field"><label for="f-doc">Document link</label><input type="url" id="f-doc" maxlength="1000" placeholder="https://… (SharePoint, OneDrive, Google Drive)"></div>
           <div class="field"><label for="f-cwg">CWG</label><input type="text" id="f-cwg" maxlength="60" list="cwg-options"><datalist id="cwg-options"></datalist></div>
         </div>
@@ -723,6 +725,23 @@ async function rpc(fn, args) {
   return data;
 }
 let ed = null; // working state for the open dialog
+// Strategy period: two year dropdowns stored as "2026–2030"
+(() => {
+  const yrs = []; for (let y = 2015; y <= 2080; y++) yrs.push(y);
+  const opts = `<option value="">— Year —</option>` + yrs.map(y => `<option value="${y}">${y}</option>`).join("");
+  $("f-period-from").innerHTML = opts; $("f-period-to").innerHTML = opts;
+})();
+function periodToSelects(v) {
+  const m = String(v || "").match(/(\d{4})\D+(\d{4})/) || String(v || "").match(/(\d{4})/);
+  const ok = y => y && +y >= 2015 && +y <= 2080 ? y : "";
+  $("f-period-from").value = m ? ok(m[1]) : "";
+  $("f-period-to").value = m && m[2] ? ok(m[2]) : "";
+}
+function selectsToPeriod() {
+  const a = $("f-period-from").value, b = $("f-period-to").value;
+  $("f-period").value = a && b ? `${a}–${b}` : (a || b || "");
+}
+["f-period-from", "f-period-to"].forEach(id => $(id).addEventListener("change", selectsToPeriod));
 $("f-status").innerHTML = STATUSES.map(st => `<option value="${st.key}">${esc(st.label)}</option>`).join("");
 function setStep(n) {
   ed.step = n;
@@ -743,6 +762,7 @@ function setStep(n) {
     if (role) {
       $("details-locked").hidden = true; $("details-form").hidden = false;
       DETAIL_FIELDS.forEach(([k, , id]) => { $(id).value = k === "cwg" ? (t.cwg || "") : (t[k] || ""); });
+      periodToSelects(t.strategyPeriod);
       ["f-femail", "f-fphone"].forEach(id => { $(id).placeholder = (k => (t[k] === undefined ? "Saved privately — retype to change" : ""))(id === "f-femail" ? "focalEmail" : "focalPhone"); });
       save.textContent = "Save details & finish"; skip.hidden = false; skip.textContent = "Finish without details";
       $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
@@ -806,6 +826,10 @@ $("dlg-form").addEventListener("submit", async e => {
   }
   if (ed.step === 2) {
     if (!ed.role) { finishDialog(); return; }
+    const pf = $("f-period-from").value, pt = $("f-period-to").value;
+    if ((pf && !pt) || (!pf && pt)) { $("dlg-err").textContent = "Please choose both years for the strategy period (from and to)."; return; }
+    if (pf && pt && +pt < +pf) { $("dlg-err").textContent = "The strategy period's \"to\" year can't be before the \"from\" year."; return; }
+    selectsToPeriod();
     const vals = Object.fromEntries(DETAIL_FIELDS.map(([k, , id]) => [k, $(id).value.trim()]));
     if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
