@@ -218,6 +218,8 @@
   .country-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--grid); font-size: 12px; font-weight: 600; }
   .country-chip button { border: 0; background: transparent; padding: 0 2px; font-size: 14px; line-height: 1; color: var(--text-muted); }
   .chip-picker { display: flex; gap: 6px; }
+  .signin-warn { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; background: rgba(245,196,0,.14); border: 1px solid rgba(245,196,0,.55); }
+  .signin-warn strong { font-weight: 700; }
   .office-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
   .office-row { display: grid; grid-template-columns: 1fr 92px 92px auto; gap: 6px; }
   @media (max-width: 520px) { .office-row { grid-template-columns: 1fr 1fr auto; } .office-row [data-o=name] { grid-column: 1 / -1; } }
@@ -477,6 +479,7 @@
       <div id="adlg-in">
         <div class="muted" style="font-size:13px;margin-top:4px">For programme coordinators and CWG leads. We'll email you a sign-in link — you can open it on any device or browser. Territories don't need to sign in to record updates.</div>
         <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
+        <div class="signin-warn" id="adlg-limit"></div>
       </div>
       <div id="adlg-sent" class="ok-note" hidden></div>
       <div id="adlg-out" hidden></div>
@@ -1614,15 +1617,36 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>${isEditor ? ` (${esc(viewer.role || "admin")}). Open the <a href="#admin" id="go-admin">Admin</a> tab to manage approved emails.` : ". This email doesn't have admin access yet — ask a programme coordinator to add it in the Admin tab."}</div>` : "";
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
+  if (!signedIn) renderSigninLimit();
   $("adlg").showModal();
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
 $("adlg-cancel").addEventListener("click", () => $("adlg").close());
+// Sign-in link limits (Supabase email sending). Update SIGNIN_PER_HOUR if the email provider changes.
+const SIGNIN_PER_HOUR = 2, SIGNIN_COOLDOWN_S = 60;
+function signinTimes() {
+  try { return (JSON.parse(localStorage.getItem("cd-signin-times") || "[]") || []).filter(x => Date.now() - x < 3600_000); } catch (e) { return []; }
+}
+function noteSignin() { try { localStorage.setItem("cd-signin-times", JSON.stringify([...signinTimes(), Date.now()])); } catch (e) {} }
+let signinTimer = null;
+function renderSigninLimit() {
+  const times = signinTimes(), used = times.length, left = Math.max(0, SIGNIN_PER_HOUR - used);
+  const last = times.length ? Math.max(...times) : 0, wait = Math.ceil((last + SIGNIN_COOLDOWN_S * 1000 - Date.now()) / 1000);
+  let html = `<strong>Limit: ${SIGNIN_PER_HOUR} sign-in emails per hour</strong> for the whole site (shared by all admins). Each link works once and expires after 1 hour. Check your spam folder before asking for another.`;
+  if (used) html += `<br>From this browser: <strong>${used} of ${SIGNIN_PER_HOUR}</strong> used in the last hour${left ? ` — ${left} left` : ` — please wait until ${new Date(Math.min(...times) + 3600_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}.`;
+  $("adlg-limit").innerHTML = html;
+  clearTimeout(signinTimer);
+  if (!viewer.email && wait > 0) {
+    $("adlg-go").disabled = true; $("adlg-go").textContent = `Wait ${wait}s to send another link`;
+    signinTimer = setTimeout(renderSigninLimit, 1000);
+  } else if (!viewer.email) { $("adlg-go").disabled = false; $("adlg-go").textContent = used ? "Send another sign-in link" : "Email me a sign-in link"; }
+}
 $("adlg-form").addEventListener("submit", async e => {
   e.preventDefault();
   if (viewer.email) { await db.auth.signOut(); $("adlg").close(); viewer = { email: "", is_coordinator: false }; await load(); toast("Signed out"); return; }
   const email = $("a-email").value.trim();
   if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
+  if (signinTimes().length >= SIGNIN_PER_HOUR && !confirm(`You've already requested ${SIGNIN_PER_HOUR} sign-in links in the last hour, so this one will probably be blocked. The latest link in your inbox may still work. Try anyway?`)) return;
   $("adlg-go").disabled = true; $("adlg-err").textContent = "";
   const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
   if (error) {
@@ -1633,7 +1657,8 @@ $("adlg-form").addEventListener("submit", async e => {
       : (m || "Couldn't send the sign-in email.");
     return;
   }
-  $("adlg-sent").hidden = false; $("adlg-sent").textContent = `Check ${email} for a sign-in link, then open it in this browser.`;
+  noteSignin(); renderSigninLimit();
+  $("adlg-sent").hidden = false; $("adlg-sent").textContent = `Sign-in link sent to ${email}. Open the newest email (check spam too). Please don't request another link unless it hasn't arrived after a few minutes.`;
 });
 
 applyMode();
