@@ -971,7 +971,7 @@ function setStep(n) {
       $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details"; skip.hidden = true;
-      $("dlg-current").textContent = `Verified as ${role}: ${ed.email}`;
+      $("dlg-current").textContent = signedInAs(ed.email) ? `Signed in as ${role}` : `Verified as ${role}: ${ed.email}`;
     } else {
       $("details-form").hidden = true; $("details-locked").hidden = false;
       $("details-locked").innerHTML = ed.needsSignin
@@ -1000,7 +1000,7 @@ function openDialog(terrId) {
     $("f-email").disabled = true;
     $("f-terr").innerHTML = `<option value="">— Choose a territory —</option>` + mine.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
     $("terr-pick").hidden = false;
-    $("dlg-current").textContent = `Signed in as ${ed.email} — choose which territory to update.`;
+    $("dlg-current").textContent = `Signed in as ${isFullAdmin ? "admin" : (viewer.role || (isFocalViewer() ? "CD focal person" : "admin"))} — choose which territory to update.`;
     $("dlg").showModal(); setTimeout(() => $("f-terr").focus(), 30);
     return;
   }
@@ -1014,7 +1014,7 @@ function chooseTerritory(m) {
   ed.needsSignin = m.canDetails && !signedInAs(ed.email);
   $("dlg-title").textContent = t.name;
   const i = sIndex(t.status);
-  $("dlg-current").textContent = `${signedInAs(ed.email) ? "Signed in" : "Verified"} as ${m.role}: ${ed.email} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
+  $("dlg-current").textContent = `${signedInAs(ed.email) ? `Signed in as ${m.role}` : `Verified as ${m.role}: ${ed.email}`} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
   $("f-status").value = t.status || STATUSES[0].key;
 }
 $("upd-btn").addEventListener("click", () => { if (db) openDialog(); });
