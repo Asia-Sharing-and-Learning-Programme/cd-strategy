@@ -175,7 +175,12 @@
   tr.zone-row td { background: var(--surface-0); }
   .indent { padding-left: 14px; display: inline-block; }
   tr.zone-group td { background: var(--grid); font-weight: 800; font-size: 13px; color: var(--text-primary); padding-top: 12px; }
-  tr.group-row td { background: var(--surface-0); font-weight: 700; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; padding-top: 12px; }
+  tr.group-row td { background: var(--surface-0); font-weight: 700; font-size: 12px; color: var(--text-secondary); padding-top: 12px; }
+  tr.group-row .grp-name { text-transform: uppercase; letter-spacing: .03em; margin-right: 14px; }
+  .lead-line { font-weight: 600; color: var(--text-primary); font-size: 12.5px; white-space: normal; }
+  .lead-line .lead-k { font-weight: 500; color: var(--text-secondary); }
+  .lead-line .lead-role { font-weight: 400; color: var(--text-secondary); }
+  .terr-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--grid); color: var(--text-secondary); font-size: 11px; font-weight: 500; vertical-align: 1px; }
   .dlg-tabs { display: flex; gap: 2px; margin: 12px 0 14px; border-bottom: 1px solid var(--border); }
   .dlg-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 7px 12px; margin-bottom: -1px; font-size: 13px; color: var(--text-muted); }
   .dlg-tabs button:hover { color: var(--text-primary); }
@@ -220,6 +225,11 @@
   .chip-picker { display: flex; gap: 6px; }
   .signin-warn { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; background: rgba(245,196,0,.14); border: 1px solid rgba(245,196,0,.55); }
   .signin-warn strong { font-weight: 700; }
+  .lead-row { display: grid; grid-template-columns: 70px 1.2fr 1.2fr 1.4fr auto; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .lead-row:last-child { border-bottom: 0; }
+  .lead-row .lead-cwg { font-weight: 700; font-size: 12.5px; }
+  .lead-row input, .lead-row select { width: 100%; padding: 5px 8px; font-size: 12.5px; }
+  @media (max-width: 720px) { .lead-row { grid-template-columns: 1fr 1fr; } .lead-row .lead-cwg { grid-column: 1 / -1; } }
   .ct-table input { width: 100%; min-width: 170px; padding: 5px 8px; font-size: 12.5px; }
   .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .role-opt { display: flex; gap: 8px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; font-weight: 400; }
@@ -360,6 +370,11 @@
           <div id="acc-leads" style="display:contents"></div>
         </div>
         <div style="margin-top:12px"><button class="primary small" id="acc-save">Save admins</button></div>
+      </section>
+      <section class="card" id="leads-card" style="margin-top:16px" hidden>
+        <h2 style="margin-bottom:4px">CWG lead details</h2>
+        <div class="muted" style="font-size:12px;line-height:1.6;margin-bottom:8px">Shown publicly on the Database tab next to each CWG, e.g. "CWG Lead: Name" with a tag for the territory they come from. Emails are never shown publicly.</div>
+        <div id="leads-rows"></div>
       </section>
       <section class="card" id="contacts-card" style="margin-top:16px" hidden>
         <div class="toolbar"><h2 style="margin:0">Focal &amp; backup persons</h2><span class="spacer"></span><span class="db-count" id="ct-count"></span></div>
@@ -532,7 +547,14 @@ const sColor = i => `var(--s${i})`;
 const SUPABASE_URL = "https://emvtqqjiirgcgghcaeps.supabase.co";
 const SUPABASE_KEY = "sb_publishable_cHpOvFlPWmirE_426PPIbg_XYo-klC9";
 let db = null, canWrite = true, viewer = { email: "", is_coordinator: false };
-let myTerrs = [];   // territories the signed-in person may edit (status + details)
+let myTerrs = [];
+let cwgLeadInfo = [];   // public: [{cwg, name, role, territory}]
+const terrName = id => (territories.find(x => x.id === id) || {}).name || "";
+function leadLine(cwg) {
+  const l = cwgLeadInfo.find(x => x.cwg === cwg);
+  if (!l || !l.name) return "";
+  return `<span class="lead-line"><span class="lead-k">CWG Lead:</span> ${esc(l.name)}${l.role ? `<span class="lead-role">, ${esc(l.role)}</span>` : ""}${l.territory && terrName(l.territory) ? ` <span class="terr-tag">${esc(terrName(l.territory))}</span>` : ""}</span>`;
+}   // territories the signed-in person may edit (status + details)
 const canEditTerr = id => !!viewer.email && myTerrs.some(m => m.id === id && m.canDetails);
 let territories = [];   // [{id, ...data}]
 let logs = [];          // [{id, ...data}]
@@ -659,7 +681,7 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderContacts(); } catch (e) {} }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} }
 
 function latestInfo() {
   const ids = new Set(viewTerr().map(t => t.id));
@@ -1117,6 +1139,34 @@ function renderAccess() {
   $("acc-save").hidden = leadOnly;
   card.querySelectorAll("textarea, input[data-cwg]").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
 }
+function renderLeadDetails() {
+  const card = $("leads-card");
+  const cwgs = isFullAdmin ? cwgList().filter(c => c !== UNASSIGNED) : (viewer.lead_cwgs || []);
+  const show = !!(db && isEditor && cwgs.length);
+  card.hidden = !show;
+  if (!show || card.dataset.editing === "1") return;
+  const opts = sel => `<option value="">— Territory they come from —</option>` + territories.map(t => `<option value="${esc(t.id)}" ${t.id === sel ? "selected" : ""}>${esc(t.name)}</option>`).join("");
+  $("leads-rows").innerHTML = cwgs.map(c => {
+    const l = cwgLeadInfo.find(x => x.cwg === c) || {};
+    const hasLead = isFullAdmin ? ((accessCfg.cwgLeads || {})[c] || []).length > 0 : true;
+    return `<div class="lead-row" data-cwg="${esc(c)}">
+      <div class="lead-cwg">${esc(c)}</div>
+      ${hasLead ? `<input type="text" data-k="name" maxlength="120" placeholder="Name" value="${esc(l.name || "")}">
+      <input type="text" data-k="role" maxlength="120" placeholder="Appointment / role (optional)" value="${esc(l.role || "")}">
+      <select data-k="territory">${opts(l.territory || "")}</select>
+      <button class="small primary" data-save-lead="${esc(c)}">Save</button>` : `<span class="muted" style="grid-column:2 / -1;font-size:12px">Add this CWG's lead email under Admins first.</span>`}
+    </div>`;
+  }).join("");
+  card.querySelectorAll("input, select").forEach(x => x.addEventListener("input", () => { card.dataset.editing = "1"; }));
+  card.querySelectorAll("[data-save-lead]").forEach(b => b.addEventListener("click", async () => {
+    const row = b.closest(".lead-row"), c = b.dataset.saveLead;
+    const v = k => row.querySelector(`[data-k="${k}"]`).value.trim();
+    b.disabled = true;
+    try { await rpc("admin_set_lead_details", { p_cwg: c, p_name: v("name"), p_role: v("role"), p_territory: v("territory") }); card.dataset.editing = ""; toast(`${c} CWG lead details saved`); await load(); }
+    catch (err) { toast(errMsg(err)); }
+    finally { b.disabled = false; }
+  }));
+}
 function renderContacts() {
   const card = $("contacts-card");
   const show = !!(db && isEditor && (accessCfg.contacts || []).length);
@@ -1210,7 +1260,7 @@ function renderDatabase() {
     const gr = rows.filter(r => cwgOf(r) === g), z = zoneOfCwg(g);
     let head = "";
     if (z !== lastZone) { lastZone = z; head = `<tr class="zone-group"><td colspan="${ncol}">${esc(zoneLabel(z))}</td></tr>`; }
-    return head + `<tr class="group-row"><td colspan="${ncol}">${esc(g)} · ${gr.length} territor${gr.length === 1 ? "y" : "ies"}</td></tr>` + gr.map(rowHtml).join("");
+    return head + `<tr class="group-row"><td colspan="${ncol}"><span class="grp-name">${esc(g)} · ${gr.length} territor${gr.length === 1 ? "y" : "ies"}</span>${leadLine(g)}</td></tr>` + gr.map(rowHtml).join("");
   }).join("");
   wireRows($("db-body"));
   $("db-body").querySelectorAll("[data-upd]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); openDialog(b.dataset.upd); }));
@@ -1678,6 +1728,7 @@ async function load() {
     const d = await rpc("get_dashboard");
     territories = d.territories || [];
     logs = d.log || [];
+    cwgLeadInfo = d.cwgLeads || [];
     viewer = d.viewer || viewer;
     isEditor = !!viewer.is_coordinator;
     isFullAdmin = !!viewer.is_full_admin;
