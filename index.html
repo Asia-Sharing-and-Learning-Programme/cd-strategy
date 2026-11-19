@@ -191,7 +191,10 @@
   .access-grid textarea { min-height: 70px; }
   .site-foot { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.8; }
   .foot-sync { color: var(--text-muted); font-size: 11px; }
-  .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; margin-left: auto; padding-left: 18px; padding-right: 18px; }
+  .hdr-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; padding-left: 18px; padding-right: 18px; }
+  .aslp-btn-yellow { background: #f5c400; border: 1px solid #f5c400; color: #1a1a19; font-weight: 700; padding-left: 14px; padding-right: 14px; }
+  .aslp-btn-yellow:hover { background: #e0b300; border-color: #e0b300; }
   .aslp-btn:hover { background: #c0391e; border-color: #c0391e; }
   .dl-group { align-items: center; }
   .map { height: 480px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-0); z-index: 0; }
@@ -229,11 +232,13 @@
         <button id="dl-pdf" class="small primary" title="One-page PDF of the current dashboard">⬇ One-page summary (PDF)</button>
         <button id="dl-xlsx" class="small">⬇ Excel</button>
       </div>
-      <button id="auth-btn" class="small" title="For programme coordinators and CWG leads">🔒 Admin access</button>
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
-      <button id="upd-btn" class="small aslp-btn">Update</button>
+      <div class="hdr-right">
+        <button id="auth-btn" class="small aslp-btn-yellow" title="For programme coordinators and CWG leads">Admin access</button>
+        <button id="upd-btn" class="small aslp-btn">Update</button>
+      </div>
     </div>
   </header>
 
@@ -1364,7 +1369,7 @@ async function load() {
 }
 function renderAuth() {
   const b = $("auth-btn");
-  b.textContent = viewer.email ? (isEditor ? `🔓 Admin: ${viewer.email}` : `Signed in: ${viewer.email}`) : "🔒 Admin access";
+  b.textContent = viewer.email ? (isEditor ? `Admin: ${viewer.email}` : `Signed in: ${viewer.email}`) : "Admin access";
   $("tab-admin").hidden = !isEditor;
 }
 $("auth-btn").addEventListener("click", () => {
