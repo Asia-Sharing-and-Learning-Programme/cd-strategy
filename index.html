@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CD Strategy – Summary Dashboard | ASLP</title>
-<meta name="description" content="ASLP Community Development Strategy progress across SPEA and South Asia territories.">
+<title>Community Development Strategies | ASLP</title>
+<meta name="description" content="Community Development Strategies progress across South Pacific and East Asia (SPEA) and South Asia (SASIA) territories of The Salvation Army.">
 <link rel="icon" href="favicon.png">
 <script src="vendor/supabase.js"></script>
 <style>
@@ -186,7 +186,8 @@
   .dbadge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--grid); font-weight: 600; }
   .access-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
   .access-grid textarea { min-height: 70px; }
-  .site-foot { margin-top: 28px; font-size: 12px; color: var(--text-muted); text-align: center; }
+  .site-foot { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.8; }
+  .foot-sync { color: var(--text-muted); font-size: 11px; }
   .hdr-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .dl-group { display: flex; gap: 6px; }
   .dl-group[hidden] { display: none; }
@@ -201,8 +202,8 @@
   <div class="logo-bar"><img class="logo-light" src="aslp-logo-light.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"><img class="logo-dark" src="aslp-logo-dark.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"></div>
   <header>
     <div>
-      <h1>CD Strategy – Summary Dashboard</h1>
-      <div class="sub">Territory progress on Community Development strategies across SPEA and South Asia. Updates are recorded in the Database tab and appear here for everyone.</div>
+      <h1>Community Development Strategies</h1>
+      <div class="sub">Territory progress on Community Development Strategies across South Pacific and East Asia (SPEA) and South Asia (SASIA). Updates are recorded in the Database tab and appear here for everyone.</div>
     </div>
     <div class="hdr-actions">
       <div class="dl-group">
@@ -304,7 +305,10 @@
       </section>
     </div>
   </div>
-  <footer class="site-foot">Asia-Pacific Sharing &amp; Learning Programme (ASLP) · The Salvation Army · <span id="foot-sync"></span></footer>
+  <footer class="site-foot">
+    <div>© 2026 Asia-Pacific Sharing &amp; Learning Programme (ASLP), The Salvation Army. All rights reserved.</div>
+    <div class="foot-sync" id="foot-sync"></div>
+  </footer>
 </div>
 
 <dialog id="dlg">
@@ -476,7 +480,7 @@ const DEFAULT_CWG = {
 };
 const DEFAULT_RANK = Object.keys(DEFAULT_CWG);
 const ZONES = [
-  { key: "SPEA", label: "South Pacific & East Asia (SPEA)", test: c => /^spea/i.test(c) },
+  { key: "SPEA", label: "South Pacific and East Asia (SPEA)", test: c => /^spea/i.test(c) },
   { key: "SASIA", label: "South Asia (SASIA)", test: c => /^(sasia|south asia)/i.test(c) },
 ];
 const cwgOf = t => (t.cwg || "").trim() || DEFAULT_CWG[t.id] || UNASSIGNED;
@@ -505,7 +509,7 @@ function renderCwgBar() {
   if (cwgFilter && !territories.some(t => matchFilter(t, cwgFilter))) cwgFilter = "";
   const btn = (v, label) => `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}">${esc(label)}</button>`;
   const el = $("cwg-pills");
-  el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span>` + (z !== "OTHER" ? btn("zone:" + z, `All ${z}`) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("")).join("");
+  el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span>` + (z !== "OTHER" ? btn("zone:" + z, zoneLabel(z)) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("")).join("");
   el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { cwgFilter = b.dataset.cwg; statusFilter = null; renderAll(); }));
   $("chart-title").textContent = cwgFilter ? `Territories by status — ${filterLabel(cwgFilter)}` : "Territories by status";
   $("cwg-options").innerHTML = [...new Set([...Object.values(DEFAULT_CWG), ...cl])].filter(c => c !== UNASSIGNED).map(c => `<option value="${esc(c)}">`).join("");
@@ -894,7 +898,7 @@ function renderDetail() {
       ${canUpdate() ? `<button class="primary" id="td-update">Update</button>` : ""}
     </div>
     <div class="td-facts">
-      <div><div class="k">Zone · CWG</div><div class="v">${esc(zoneOf(t) === "OTHER" ? cwgOf(t) : zoneOf(t) + " · " + cwgOf(t))}</div></div>
+      <div><div class="k">Zone · CWG</div><div class="v">${esc(zoneOf(t) === "OTHER" ? cwgOf(t) : zoneLabel(zoneOf(t)) + " · " + cwgOf(t))}</div></div>
       <div><div class="k">Focal person</div><div class="v">${t.focal ? esc(t.focal) : "—"}</div></div>
       ${t.focalEmail ? `<div><div class="k">Focal email</div><div class="v">${esc(t.focalEmail)}</div></div>` : ""}
       ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
@@ -1005,7 +1009,7 @@ async function buildPDF() {
   try { const logo = await logoDataURL(); doc.addImage(logo, "PNG", M, y, 92, 92 * 464 / 1600); } catch (e) {}
   y += 92 * 464 / 1600 + 8;
   doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...ink);
-  doc.text(pdfSafe(cwgFilter ? `CD Strategy - Summary Dashboard: ${filterLabel(cwgFilter)}` : "CD Strategy - Summary Dashboard"), M, y);
+  doc.text(pdfSafe(cwgFilter ? `Community Development Strategies: ${filterLabel(cwgFilter)}` : "Community Development Strategies"), M, y);
   doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...mut);
   doc.text(pdfSafe(`Status as of ${fmtDate(todayISO())}`), PW - M, y, { align: "right" });
   y += 6;
@@ -1103,7 +1107,7 @@ async function buildPDF() {
   });
   doc.setDrawColor(...line); doc.line(M, y, M + CW, y);
   doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut);
-  doc.text("Asia-Pacific Sharing & Learning Programme (ASLP) - The Salvation Army", M, 291);
+  doc.text("(c) 2026 Asia-Pacific Sharing & Learning Programme (ASLP), The Salvation Army. All rights reserved.", M, 291);
   doc.text(pdfSafe(`Generated ${new Date().toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`), PW - M, 291, { align: "right" });
   return doc.output("blob");
 }
@@ -1126,7 +1130,7 @@ async function buildXLSX() {
     ds.addImage(id, { tl: { col: 0, row: 0 }, ext: { width: 400, height: 116 } });
   } catch (e) {}
   for (let r = 1; r <= 7; r++) ds.getRow(r).height = 17;
-  ds.getCell("A9").value = "CD Strategy - Summary Dashboard"; ds.getCell("A9").font = { bold: true, size: 16 };
+  ds.getCell("A9").value = "Community Development Strategies"; ds.getCell("A9").font = { bold: true, size: 16 };
   ds.getCell("A10").value = `Status as of ${fmtDate(todayISO())}`; ds.getCell("A10").font = { color: { argb: "FF7A7974" } };
   const done = c[4] + c[5];
   const kp = [["Territories", total], ["Approved or implementing", done], ["Share approved or implementing", total ? done / total : 0], ["Still in drafting stages", c[0] + c[1] + c[2] + c[3]]];
@@ -1142,7 +1146,7 @@ async function buildXLSX() {
   // Territories sheet
   const ts = wb.addWorksheet("Territories", { views: [{ state: "frozen", ySplit: 1 }] });
   ts.columns = [
-    { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 10 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 },
+    { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
     { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 },
@@ -1150,7 +1154,7 @@ async function buildXLSX() {
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneOf(t), cwg: cwgOf(t), focal: t.focal || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", period: t.strategyPeriod || "", target: t.target || "", status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", period: t.strategyPeriod || "", target: t.target || "", status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "" });
     r.getCell("last").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
@@ -1199,12 +1203,12 @@ async function buildXLSX() {
 
 $("dl-pdf").addEventListener("click", async e => {
   const b = e.currentTarget, label = b.textContent; b.disabled = true; b.textContent = "Preparing PDF…";
-  try { const blob = await buildPDF(); await saveFile(`CD_Strategy_Dashboard_${fileStamp()}.pdf`, blob, b, label); }
+  try { const blob = await buildPDF(); await saveFile(`Community_Development_Strategies_${fileStamp()}.pdf`, blob, b, label); }
   catch (err) { b.disabled = false; b.textContent = label; toast("Couldn't build the PDF — please try again"); }
 });
 $("dl-xlsx").addEventListener("click", async e => {
   const b = e.currentTarget, label = b.textContent; b.disabled = true; b.textContent = "Preparing Excel…";
-  try { const blob = await buildXLSX(); await saveFile(`CD_Strategy_Dashboard_${fileStamp()}.xlsx`, blob, b, label); }
+  try { const blob = await buildXLSX(); await saveFile(`Community_Development_Strategies_${fileStamp()}.xlsx`, blob, b, label); }
   catch (err) { b.disabled = false; b.textContent = label; toast("Couldn't build the Excel file — please try again"); }
 });
 
