@@ -280,6 +280,20 @@
   .help-leads .mini-lock { font-size: 13px; }
   .site-foot { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.8; }
   .foot-sync { color: var(--text-muted); font-size: 11px; }
+  /* main actions: big pills (filled = PDF summary, outlined = share / Excel) */
+  :root { --pill: #005fc0; } :root[data-theme="dark"] { --pill: #3d86dc; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --pill: #3d86dc; } }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .pill-btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 999px; padding: 10px 22px; font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; line-height: 1.2; transition: background .15s, box-shadow .15s; }
+  .pill-btn .pb-ic { width: 19px; height: 19px; flex: none; }
+  .pill-btn .pb-sub { font-weight: 400; opacity: .8; margin-left: -2px; }
+  .pill-fill { background: var(--pill); border: 2px solid var(--pill); color: #fff; }
+  .pill-fill:hover { box-shadow: 0 2px 10px color-mix(in srgb, var(--pill) 40%, transparent); }
+  .pill-line { background: transparent; border: 2px solid var(--pill); color: var(--pill); }
+  .pill-line:hover { background: color-mix(in srgb, var(--pill) 9%, transparent); }
+  .pill-small { padding: 10px 16px; }
+  .pill-btn:disabled { opacity: .6; cursor: wait; }
+  .hdr-right button { border-radius: 999px; padding: 9px 20px; font-size: 14px; }
   .hdr-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
   .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; padding-left: 18px; padding-right: 18px; }
   /* Sign in: ASLP logo colours (navy with the logo's yellow underline) */
@@ -421,6 +435,9 @@
     h1 { font-size: 21px; }
     .hdr-actions { gap: 8px; }
     .hdr-actions > button, .hdr-right button { padding: 7px 11px; }
+    .pill-row { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .pill-row .pill-fill { padding: 15px 18px; font-size: 16px; }
+    .pill-row .pill-line { padding: 13px 16px; font-size: 15.5px; }
     .hdr-right { margin-left: 0; width: 100%; }
     .hdr-right button { flex: 1; }
     .card { padding: 14px; }
@@ -457,15 +474,15 @@
       <div class="sub">Territory progress on Community Development Strategies across South Pacific and East Asia (SPEA) and South Asia (SASIA). Registered focal and backup persons record updates with the Update button.</div>
     </div>
     <div class="hdr-actions">
-      <div class="dl-group">
-        <button id="dl-pdf" class="small primary" title="One-page PDF: all territories, one zone or one CWG">One-page summary (PDF)</button>
-        <button id="dl-xlsx" class="small">Excel</button>
+      <div class="pill-row">
+        <button id="dl-pdf" class="pill-btn pill-fill" title="One-page PDF: all territories, one zone or one CWG"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download one-page summary</span><span class="pb-sub">(PDF)</span></button>
+        <button id="share-btn" class="pill-btn pill-line" title="Get the link to this website"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="5" r="2.8"/><circle cx="6" cy="12" r="2.8"/><circle cx="18" cy="19" r="2.8"/><path d="M8.5 10.6l7-4.2M8.5 13.4l7 4.2"/></g></svg><span>Share this dashboard</span></button>
+        <button id="dl-xlsx" class="pill-btn pill-line pill-small" title="Excel workbook (read-only)"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download Excel</span></button>
       </div>
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
       <div class="hdr-right">
-        <button id="share-btn" class="small" title="Get the link to this website">Share</button>
         <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (Admins, CWG leads and CD focal persons)">Sign in</button>
         <button id="upd-btn" class="small aslp-btn">Update</button>
       </div>
@@ -2048,7 +2065,7 @@ async function saveFile(filename, data, btn, label) {
     const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     toast("Download started");
-  } finally { btn.disabled = false; btn.textContent = label; }
+  } finally { btn.disabled = false; if (label != null) btn.textContent = label; }
 }
 
 // Static map for the PDF: countries from the bundled world map, pins at each HQ coloured by status
@@ -2456,7 +2473,7 @@ $("pdlg-form").addEventListener("submit", async e => {
     const tag = "_" + (scope ? (scope.startsWith("zone:") ? scope.slice(5) : scope).replace(/[^A-Za-z0-9]+/g, "_") : "All");
     cwgFilter = prevCwg; statusFilter = prevStatus;
     $("pdlg").close(); b.disabled = false; b.textContent = label;
-    await saveFile(`Community_Development_Strategies${tag}_${fileStamp()}.pdf`, blob, $("dl-pdf"), $("dl-pdf").textContent);
+    await saveFile(`Community_Development_Strategies${tag}_${fileStamp()}.pdf`, blob, $("dl-pdf"), null);
   } catch (err) { cwgFilter = prevCwg; statusFilter = prevStatus; b.disabled = false; b.textContent = label; toast("Couldn't build the PDF — please try again"); }
 });
 $("dl-xlsx").addEventListener("click", () => {
@@ -2480,7 +2497,7 @@ $("xdlg-form").addEventListener("submit", async e => {
     try { sessionStorage.setItem("cd-email", email); } catch (e2) {}
     const blob = await buildXLSX(email);
     $("xdlg").close();
-    await saveFile(`Community_Development_Strategies_${fileStamp()}.xlsx`, blob, $("dl-xlsx"), "Excel");
+    await saveFile(`Community_Development_Strategies_${fileStamp()}.xlsx`, blob, $("dl-xlsx"), null);
   } catch (err) {
     go.disabled = false; go.textContent = "Download Excel";
     $("xdlg-err").textContent = (err && err.message) || "Couldn't prepare the Excel file. Please try again.";
