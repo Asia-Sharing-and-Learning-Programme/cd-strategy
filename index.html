@@ -618,6 +618,18 @@
     <button type="button" class="danger-fill" id="ddlg-ok">Delete entry</button>
   </div>
 </dialog>
+<dialog id="fdlg">
+  <div class="dlg-body">
+    <h3>Finish signing in</h3>
+    <div class="muted help" id="fdlg-msg" style="margin-top:6px"><p>Click the button below to finish signing in on this device.</p></div>
+    <div class="err" id="fdlg-err"></div>
+  </div>
+  <div class="dlg-actions">
+    <button type="button" id="fdlg-cancel">Cancel</button>
+    <span class="spacer"></span>
+    <button type="button" class="primary" id="fdlg-go">Finish signing in</button>
+  </div>
+</dialog>
 <dialog id="pdlg">
   <form id="pdlg-form" method="dialog" novalidate>
     <div class="dlg-body">
@@ -657,6 +669,11 @@
         <div id="adlg-limit"></div>
       </div>
       <div id="adlg-sent" class="ok-note" hidden></div>
+      <div id="adlg-code" hidden>
+        <div class="field" style="margin-top:10px"><label for="a-code">Or type the code from the email</label>
+          <div style="display:flex;gap:8px"><input type="text" id="a-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="6-digit code" style="flex:1;letter-spacing:3px;font-variant-numeric:tabular-nums">
+          <button type="button" class="primary" id="a-code-go">Sign in</button></div></div>
+      </div>
       <div id="adlg-out" hidden></div>
       <div class="err" id="adlg-err"></div>
       <div class="dlg-help help" id="adlg-help"><p><strong>Having trouble signing in?</strong></p><ul><li>Admins and CWG leads: contact the SWI-SAID Asia Programme Manager.</li><li>CD focal persons: contact your CWG lead.</li></ul></div>
@@ -2160,7 +2177,7 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-title").textContent = signedIn ? "Signed in" : "Sign in";
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
-  $("adlg-go").hidden = false;
+  $("adlg-go").hidden = false; $("adlg-code").hidden = true;
   if (!signedIn) {
     signinState = null; renderSigninLimit(); refreshSigninLimit();
     rpc("signin_status_for", { p_email: "" }).then(r => { if (r && r.limit) { signinLimitN = r.limit; if (!signinState) renderSigninLimit(); } }).catch(() => {});
@@ -2169,6 +2186,19 @@ $("auth-btn").addEventListener("click", () => {
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
 $("adlg-cancel").addEventListener("click", () => $("adlg").close());
+// Sign in with the code from the email (works even when an email scanner has already opened the link)
+let codeEmail = "";
+async function signInWithCode() {
+  const token = $("a-code").value.replace(/\s+/g, "");
+  if (!/^\d{6,10}$/.test(token)) { $("adlg-err").textContent = "Please type the code from the email (numbers only)."; return; }
+  $("a-code-go").disabled = true; $("adlg-err").textContent = "";
+  const { error } = await db.auth.verifyOtp({ email: codeEmail, token, type: "email" });
+  $("a-code-go").disabled = false;
+  if (error) { $("adlg-err").textContent = /expired|invalid/i.test(error.message || "") ? "That code didn't work. It may have expired or already been used. Check you typed the newest one, or request a new link." : (error.message || "Couldn't sign in with that code."); return; }
+  $("adlg").close(); await load(); applyMode(); toast("Signed in");
+}
+$("a-code-go").addEventListener("click", signInWithCode);
+$("a-code").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); signInWithCode(); } });
 // Sign-in link limits (Supabase email sending). Update SIGNIN_PER_HOUR if the email provider changes.
 const isFocalViewer = () => !!(viewer.email && (viewer.focal_of || []).length);
 const signedInAs = email => !!viewer.email && normEmail(viewer.email) === normEmail(email);
@@ -2232,8 +2262,8 @@ $("adlg-form").addEventListener("submit", async e => {
       : (m || "Couldn't send the sign-in email.");
     return;
   }
-  $("adlg-in").hidden = true; $("adlg-go").hidden = true;
-  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${esc(email)}.</strong></p><p>Open the newest email (check spam too) on this device.</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>${limitBox(signinState)}`;
+  $("adlg-in").hidden = true; $("adlg-go").hidden = true; codeEmail = email; $("adlg-code").hidden = false; $("a-code").value = "";
+  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${esc(email)}.</strong></p><p>Open the newest email (check spam too). Either click its link and then <strong>Finish signing in</strong>, or type its code below.</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>${limitBox(signinState)}`;
 });
 
 applyMode();
@@ -2242,6 +2272,7 @@ applyMode();
   const hashParams = new URLSearchParams(location.hash.slice(1));
   const linkError = hashParams.get("error_description") || new URLSearchParams(location.search).get("error_description");
   const cameFromLink = hashParams.has("access_token");
+  const qp = new URLSearchParams(location.search), tokenHash = qp.get("token_hash"), otpType = qp.get("type") || "email";
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: "implicit", persistSession: true, detectSessionInUrl: true, autoRefreshToken: true } });
   db.auth.onAuthStateChange((evt) => {
     if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") load();
@@ -2250,8 +2281,19 @@ applyMode();
   if (cameFromLink || linkError || location.search.includes("code=")) history.replaceState(null, "", location.pathname + (cameFromLink ? "#admin" : ""));
   await load();
   applyMode();
-  if (cameFromLink) toast(isEditor ? "Signed in — welcome to the Admin tab" : "Signed in, but this email doesn't have admin access yet");
-  if (linkError) banner("That sign-in link didn't work (" + linkError.replace(/\+/g, " ") + "). Links work once and expire after an hour — click Admin access to get a new one.");
+  if (cameFromLink) toast("Signed in");
+  if (linkError) banner("That sign-in link didn't work (" + linkError.replace(/\+/g, " ") + "). Links work once and expire after an hour. Click Sign in to get a new one, or use the code from the email.");
+  if (tokenHash) {
+    history.replaceState(null, "", location.pathname + location.hash);
+    $("fdlg-err").textContent = ""; $("fdlg-go").disabled = false; $("fdlg").showModal();
+    $("fdlg-cancel").onclick = () => $("fdlg").close();
+    $("fdlg-go").onclick = async () => {
+      $("fdlg-go").disabled = true; $("fdlg-err").textContent = "";
+      const { error } = await db.auth.verifyOtp({ token_hash: tokenHash, type: otpType === "signup" || otpType === "magiclink" ? "email" : otpType });
+      if (error) { $("fdlg-go").disabled = false; $("fdlg-err").textContent = /expired|invalid|not found/i.test(error.message || "") ? "This sign-in link has expired or was already used. Click Cancel, then Sign in to get a new one." : (error.message || "Couldn't finish signing in."); return; }
+      $("fdlg").close(); await load(); applyMode(); toast("Signed in");
+    };
+  }
   setInterval(load, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
 })();
