@@ -2068,7 +2068,10 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
   $("adlg-go").hidden = false;
-  if (!signedIn) { signinState = null; renderSigninLimit(); refreshSigninLimit(); }
+  if (!signedIn) {
+    signinState = null; renderSigninLimit(); refreshSigninLimit();
+    rpc("signin_status_for", { p_email: "" }).then(r => { if (r && r.limit) { signinLimitN = r.limit; if (!signinState) renderSigninLimit(); } }).catch(() => {});
+  }
   $("adlg").showModal();
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
@@ -2079,7 +2082,7 @@ const signedInAs = email => !!viewer.email && normEmail(viewer.email) === normEm
 // Shared hourly limit for sign-in emails (counted on the server, across the CD Strategies site and the ASLP Calendar)
 let signinState = null, signinTimer = null;
 const hhmm = iso => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
-let signinLimitN = 2;
+let signinLimitN = 3;
 function limitBox(st) {
   if (!st) return `<div class="limitbox"><div class="lb-top"><strong>Sign-in emails</strong></div><p>Each person can request up to <strong>${signinLimitN}</strong> sign-in emails per hour. Your count appears when you enter your email.</p>
     <p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
