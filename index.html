@@ -1698,14 +1698,12 @@ async function buildPDF() {
 
   // KPIs
   const c = counts(), total = viewTerr().length, done = c[4] + c[5];
-  const latest = latestInfo();
   const kpis = [
     ["Territories", String(total), "being tracked"],
     ["Approved or implementing", String(done), total ? `${Math.round(done / total * 100)}% of territories` : ""],
     ["Still in drafting stages", String(c[0] + c[1] + c[2] + c[3]), "not started to submitted"],
-    ["Most recent update", latest ? fmtDate(latest.date) : "-", latest ? latest.name : "no updates logged yet"],
   ];
-  const kw = (CW - 3 * 4) / 4, kh = 18;
+  const kw = (CW - (kpis.length - 1) * 4) / kpis.length, kh = 18;
   kpis.forEach((k, i) => {
     const x = M + i * (kw + 4);
     doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(x, y, kw, kh, 2, 2, "S");
