@@ -1393,10 +1393,12 @@ function renderAccess() {
   $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG lead` : "Admins";
   $("acc-help").innerHTML = leadOnly
     ? `<p>As a CWG lead, you can see who leads <strong>${esc(cl.join(" and "))}</strong>.</p><p>Below, you can manage your territories' focal and backup persons.</p><p>Only programme coordinators and other admins can change who has admin access.</p>`
-    : `<p>Everyone listed here can <strong>Sign in → Admin</strong>.</p><ul><li><strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. Enter one email per line, as many as needed.</li><li>Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories.</li></ul><p>You can't remove your own email.</p>`
+    : `<p>Everyone listed here can <strong>Sign in → Admin</strong>.</p><ul><li><strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. Enter one email per line, as many as needed.</li><li>Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories. You can also add an <strong>alternative email</strong> for the lead (e.g. a second work address); both can sign in as that CWG lead.</li></ul><p>You can't remove your own email.</p>`
   $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
   $("acc-other").value = (accessCfg.otherAdmins || []).join("\n");
-  $("acc-leads").innerHTML = cl.map(c => `<div class="field"><label>${esc(c)} CWG lead</label><input type="email" data-cwg="${esc(c)}" maxlength="200" placeholder="one email" value="${esc(((accessCfg.cwgLeads || {})[c] || [])[0] || "")}" ${leadOnly ? "readonly" : ""}></div>`).join("");
+  $("acc-leads").innerHTML = cl.map(c => { const em = (accessCfg.cwgLeads || {})[c] || []; return `<div class="field"><label>${esc(c)} CWG lead</label>
+    <input type="email" data-cwg="${esc(c)}" data-slot="0" maxlength="200" placeholder="main email" value="${esc(em[0] || "")}" ${leadOnly ? "readonly" : ""}>
+    <input type="email" data-cwg="${esc(c)}" data-slot="1" maxlength="200" placeholder="alternative email (optional)" value="${esc(em[1] || "")}" ${leadOnly ? "readonly" : ""} style="margin-top:6px"></div>`; }).join("");
   $("acc-save").hidden = leadOnly;
   card.querySelectorAll("textarea, input[data-cwg]").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
 }
@@ -1461,11 +1463,18 @@ $("acc-save").addEventListener("click", async () => {
   const card = $("access-card"), b = $("acc-save");
   const leadOnly = accessCfg.scope === "cwg";
   const cfg = { ...accessCfg, coordinators: leadOnly ? accessCfg.coordinators : splitEmails($("acc-coord").value), otherAdmins: leadOnly ? accessCfg.otherAdmins : splitEmails($("acc-other").value), cwgLeads: {}, updatedAt: Date.now() };
+  // per CWG: [main email, alternative email]
+  const leadSlots = {};
   for (const inp of card.querySelectorAll("input[data-cwg]")) {
-    const v = normEmail(inp.value);
-    if (/[\s,;]/.test(inp.value.trim())) { toast(`Each CWG can have only one CWG lead (${inp.dataset.cwg}).`); return; }
-    if (v && !validEmail(v)) { toast(`The ${inp.dataset.cwg} CWG lead email doesn't look right.`); return; }
-    cfg.cwgLeads[inp.dataset.cwg] = v ? [v] : [];
+    const v = normEmail(inp.value), c = inp.dataset.cwg, what = inp.dataset.slot === "1" ? "alternative" : "main";
+    if (/[\s,;]/.test(inp.value.trim())) { toast(`Put one email per box (${c} CWG lead, ${what} email).`); return; }
+    if (v && !validEmail(v)) { toast(`The ${c} CWG lead ${what} email doesn't look right.`); return; }
+    (leadSlots[c] = leadSlots[c] || ["", ""])[+inp.dataset.slot] = v;
+  }
+  for (const [c, [main, alt]] of Object.entries(leadSlots)) {
+    if (alt && !main) { toast(`${c}: please fill in the main CWG lead email before the alternative one.`); return; }
+    if (alt && alt === main) { toast(`${c}: the alternative email must be different from the main one.`); return; }
+    cfg.cwgLeads[c] = [main, alt].filter(Boolean);
   }
   b.disabled = true;
   try { await rpc("admin_set_access", { p_coordinators: leadOnly ? [] : cfg.coordinators, p_cwg_leads: cfg.cwgLeads, p_other_admins: leadOnly ? null : cfg.otherAdmins }); accessCfg = cfg; card.dataset.editing = ""; renderAccess(); toast("Admins saved"); }
