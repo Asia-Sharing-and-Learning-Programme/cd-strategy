@@ -576,6 +576,11 @@
       <div id="step-1" hidden>
         <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select>
           <div class="status-def" id="f-status-def"></div><div class="flag-box" id="f-status-flags" hidden></div></div>
+        <div class="field" id="s-appr-wrap" hidden><label>Approving bodies and approval dates</label>
+          <div class="hint" style="margin:0 0 6px">Add every body that approved the CD Strategy (e.g. Territorial Cabinet, Territorial Board) and the date each one approved it. Your email is recorded with this update.</div>
+          <div id="s-approvals" class="office-rows"></div>
+          <div><button type="button" class="small" id="s-appr-add">+ Add approving body</button></div>
+        </div>
         <div class="field"><label for="f-date">Date of update</label><input type="date" id="f-date"></div>
         <div class="field"><label for="f-note">Note (optional)</label><textarea id="f-note" maxlength="1000" placeholder="e.g. Draft shared with THQ for comment"></textarea></div>
       </div>
@@ -591,7 +596,7 @@
             <div class="field"><label for="f-femail">Focal person email</label><input type="email" id="f-femail" maxlength="200"></div>
             <div class="field"><label for="f-fphone">Focal person phone</label><input type="text" id="f-fphone" maxlength="40"></div>
           </div>
-          <div class="field"><label for="f-bemail">Backup person email <span class="muted" style="font-weight:400">(can update the status only)</span></label><input type="email" id="f-bemail" maxlength="200"></div>
+          <div class="field"><label for="f-bemail">Backup person email <span class="muted" style="font-weight:400">(can update the status, and the approving bodies once approved)</span></label><input type="email" id="f-bemail" maxlength="200"></div>
           <input type="hidden" id="f-period">
           <div class="two">
             <div class="field"><label for="f-period-from">Strategy period: from</label><select id="f-period-from"></select></div>
@@ -1321,18 +1326,25 @@ function readCons() {
   return { held: true, from, to, timing: w.value };
 }
 // approving bodies editor
-let editApprovals = [];
-function readApprovalRows() {
-  editApprovals = [...$("f-approvals").querySelectorAll(".office-row")].map(r => ({ body: r.querySelector("[data-a=body]").value, date: r.querySelector("[data-a=date]").value }));
-}
-function renderApprovalRows() {
-  $("f-approvals").innerHTML = editApprovals.map((a, i) => `<div class="office-row appr-row">
+// one editor per box: the details tab (focal persons, CWG leads, admins) and the status tab (anyone who can update the status, incl. backup persons)
+function apprEditor(boxId, addId) {
+  const ed2 = { rows: [] };
+  ed2.read = () => { ed2.rows = [...$(boxId).querySelectorAll(".office-row")].map(r => ({ body: r.querySelector("[data-a=body]").value, date: r.querySelector("[data-a=date]").value })); };
+  ed2.render = () => {
+    $(boxId).innerHTML = ed2.rows.map((a, i) => `<div class="office-row appr-row">
       <input type="text" data-a="body" maxlength="120" placeholder="Approving body, e.g. Territorial Cabinet" aria-label="Approving body ${i + 1}" value="${esc(a.body)}">
       <input type="date" data-a="date" min="2000-01-01" aria-label="Approval date ${i + 1}" value="${esc(a.date)}">
       <button type="button" class="small" data-ai="${i}" aria-label="Remove approving body ${i + 1}">×</button></div>`).join("") || '<span class="muted" style="font-size:12px">No approving bodies yet.</span>';
-  $("f-approvals").querySelectorAll("button[data-ai]").forEach(b => b.addEventListener("click", () => { readApprovalRows(); editApprovals.splice(+b.dataset.ai, 1); renderApprovalRows(); }));
+    $(boxId).querySelectorAll("button[data-ai]").forEach(b => b.addEventListener("click", () => { ed2.read(); ed2.rows.splice(+b.dataset.ai, 1); ed2.render(); }));
+  };
+  ed2.set = list => { ed2.rows = (list || []).map(a => ({ body: a.body || "", date: a.date || "" })); if (!ed2.rows.length) ed2.rows.push({ body: "", date: "" }); ed2.render(); };
+  // cleaned list, or throws a message
+  ed2.value = () => { ed2.read(); const v = ed2.rows.map(a => ({ body: String(a.body).trim(), date: a.date })).filter(a => a.body || a.date);
+    if (v.some(a => !a.body)) throw "Please name the approving body for each approval date (or remove the empty row)."; return v; };
+  $(addId).addEventListener("click", () => { ed2.read(); ed2.rows.push({ body: "", date: "" }); ed2.render(); $(boxId).querySelector(".office-row:last-child [data-a=body]").focus(); });
+  return ed2;
 }
-$("f-appr-add").addEventListener("click", () => { readApprovalRows(); editApprovals.push({ body: "", date: "" }); renderApprovalRows(); $("f-approvals").querySelector(".office-row:last-child [data-a=body]").focus(); });
+const detAppr = apprEditor("f-approvals", "f-appr-add"), statAppr = apprEditor("s-approvals", "s-appr-add");
 // new strategy cycle: the current period, approvals and document move to "Previous strategy cycles"
 function renderCycleBox(t) {
   const box = $("f-cycle"), hasCur = !!(t.strategyPeriod || (t.approvals || []).length || t.docLink);
@@ -1374,6 +1386,8 @@ $("status-guide-list").innerHTML = STATUSES.map((st, i) => `<li><span class="sw"
 function renderStatusDef() {
   const i = sIndex($("f-status").value), st = STATUSES[i]; if (!st) return;
   $("f-status-def").innerHTML = `<strong>Use this when:</strong> ${esc(st.here)}<br><strong>Next status when:</strong> ${esc(st.next)}.`;
+  // people without the CD Strategy details tab (e.g. backup persons) record approvals here once it's approved
+  $("s-appr-wrap").hidden = !(ed && ed.terr && !ed.role && i >= 4);
   const fl = ed && ed.terr ? statusFlags(ed.terr, st.key) : [];
   $("f-status-flags").hidden = !fl.length;
   $("f-status-flags").innerHTML = fl.length ? `<strong>Please check</strong><ul>${fl.map(f => `<li>${esc(f)}</li>`).join("")}</ul><div class="muted">This is only a reminder. You can still save this status.</div>` : "";
@@ -1403,7 +1417,7 @@ function setStep(n) {
       editOffices = (t.offices || []).map(o => ({ name: o.name || "", lat: o.lat ?? "", lng: o.lng ?? "" })); renderOfficeRows();
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = sIndex(t.status) >= 4 ? "none" : "";
-      fillCons(t.consultation); editApprovals = (t.approvals || []).map(a => ({ body: a.body || "", date: a.date || "" })); if (!editApprovals.length) editApprovals.push({ body: "", date: "" }); renderApprovalRows(); renderCycleBox(t);
+      fillCons(t.consultation); detAppr.set(t.approvals); renderCycleBox(t);
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details"; skip.hidden = true;
       $("dlg-current").textContent = signedInAs(ed.email) ? `Signed in as ${role}` : `Verified as ${role}: ${ed.email}`;
@@ -1411,7 +1425,7 @@ function setStep(n) {
       $("details-form").hidden = true; $("details-locked").hidden = false;
       $("details-locked").innerHTML = ed.needsSignin
         ? `${ed.statusSaved ? "<p><strong>Your status update has been saved.</strong></p>" : ""}<p>To edit the CD Strategy details of ${esc(t.name)}, please <strong>sign in first</strong>:</p><ol><li>Close this box and click <strong>Sign in</strong>.</li><li>Choose <strong>${/coordinator|CWG lead/i.test(ed.statusRole || "") ? "Admin" : "CD Focal Person"}</strong> and open the link we email to ${esc(ed.email)}.</li><li>Click <strong>Update</strong> again.</li></ol>`
-        : `${ed.statusSaved ? "<p><strong>Your status update has been saved.</strong></p>" : ""}<p>As the backup person for ${esc(t.name)}, you can update the status only.</p><p>The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.</p>`;
+        : `${ed.statusSaved ? "<p><strong>Your status update has been saved.</strong></p>" : ""}<p>As the backup person for ${esc(t.name)}, you can update the status. Once it is Approved (or later), you can also add the approving bodies and approval dates in the Status update tab.</p><p>The CD Strategy details can be updated by the territorial focal person, the ${esc(cwgOf(t))} CWG lead or a programme coordinator.</p>`;
       save.textContent = "Done"; skip.hidden = true;
     }
   }
@@ -1451,6 +1465,7 @@ function chooseTerritory(m) {
   const i = sIndex(t.status);
   $("dlg-current").textContent = `${signedInAs(ed.email) ? `Signed in as ${m.role}` : `Verified as ${m.role}: ${ed.email}`} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
   $("f-status").value = t.status || STATUSES[0].key;
+  statAppr.set(t.approvals);
   renderStatusDef();
 }
 $("upd-btn").addEventListener("click", () => { if (db) openDialog(); });
@@ -1494,9 +1509,12 @@ $("dlg-form").addEventListener("submit", async e => {
   if (ed.step === 1) {
     const status = $("f-status").value, date = $("f-date").value, note = $("f-note").value.trim();
     if (!date) { $("dlg-err").textContent = "Please choose the date of the update."; return; }
+    let apps = null;
+    if (!$("s-appr-wrap").hidden) { try { apps = statAppr.value(); } catch (m) { $("dlg-err").textContent = m; return; } }
     $("dlg-save").disabled = true; $("dlg-skip").disabled = true;
     try {
       await rpc("submit_status_update", { p_email: ed.email, p_territory: t.id, p_status: status, p_date: date, p_note: note });
+      if (apps) { const r2 = await rpc("submit_approvals_update", { p_email: ed.email, p_territory: t.id, p_approvals: apps }); if (r2 && r2.changed) t.approvals = apps; }
       Object.assign(t, { status });
       ed.statusSaved = true;
       if (ed.role || ed.needsSignin) await goDetails(); else finishDialog();
@@ -1520,10 +1538,7 @@ $("dlg-form").addEventListener("submit", async e => {
     const vals = Object.fromEntries(DETAIL_FIELDS.map(([k, , id]) => [k, $(id).value.trim()]));
     vals.countries = editCountries;
     vals.offices = offices.map(o => ({ name: o.name, lat: o.lat === "" ? null : +o.lat, lng: o.lng === "" ? null : +o.lng }));
-    readApprovalRows();
-    const apps = editApprovals.map(a => ({ body: String(a.body).trim(), date: a.date })).filter(a => a.body || a.date);
-    if (apps.some(a => !a.body)) { $("dlg-err").textContent = "Please name the approving body for each approval date (or remove the empty row)."; return; }
-    vals.approvals = apps;
+    try { vals.approvals = detAppr.value(); } catch (m) { $("dlg-err").textContent = m; return; }
     try { vals.consultation = readCons(); } catch (m) { $("dlg-err").textContent = m; return; }
     if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
@@ -1655,7 +1670,7 @@ const approvalsHtml = a => (a || []).length ? a.map(x => `${esc(x.body || "Appro
 function statusFlags(t, statusKey) {
   const k = statusKey || t.status, i = sIndex(k), f = [], yr = new Date().getFullYear(), p = strategyYears(t);
   const dated = (t.approvals || []).some(a => a.date);
-  if (i >= 4 && !dated) f.push(`Status is "${STATUSES[i].label}", but no approval date has been added yet. Add the approving body and date in the CD Strategy details.`);
+  if (i >= 4 && !dated) f.push(`Status is "${STATUSES[i].label}", but no approval date has been added yet. Add the approving body and the date it approved the strategy.`);
   if (i >= 4 && !p) f.push(`Status is "${STATUSES[i].label}", but there's no strategy period yet.`);
   if (k === "implementing" && p && p[0] > yr) f.push(`Status is "In implementation", but the strategy period only starts in ${p[0]}. If implementation hasn't started, "Approved" may fit better.`);
   if ((k === "approved" || k === "implementing") && p && p[1] < yr) f.push(`The strategy period ended in ${p[1]}. If so, the status may be "Period ended".`);
