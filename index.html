@@ -2021,9 +2021,8 @@ async function pdfMapImage(list, wMM, hMM) {
     g.fillStyle = covered.has(String(f.properties.name).toLowerCase()) ? "#d9d5ee" : "#f7f6f2"; g.fill("evenodd");
     g.strokeStyle = "#c9c6bd"; g.lineWidth = 1.2; g.stroke();
   }
-  // pins (largest first so small ones stay visible), then labels where they fit
+  // pins only (no names), drawn north to south so overlapping pins stay visible
   const r = Math.max(11, Math.min(18, W / 34));
-  const placed = [];
   const order = [...pts].sort((a, b) => b.lat - a.lat);
   order.forEach(t => {
     const [x, y] = P(t.lng, t.lat), i = sIndex(t.status);
@@ -2033,25 +2032,6 @@ async function pdfMapImage(list, wMM, hMM) {
     g.fillStyle = i >= 0 ? S_HEX[i] : "#888"; g.fill(); g.strokeStyle = "#ffffff"; g.lineWidth = 2.5; g.stroke();
     g.beginPath(); g.arc(x, y - r * 1.75, r * 0.38, 0, Math.PI * 2); g.fillStyle = "#fff"; g.fill();
   });
-  {   // names where they fit without overlapping
-    g.font = `600 ${Math.round(r * 1.5)}px Helvetica, Arial, sans-serif`; g.textBaseline = "middle";
-    order.forEach(t => {
-      const [x, y] = P(t.lng, t.lat);
-      let label = t.name.replace(/\s+(Territory|Region)$/i, "");
-      if (label.length > 26) label = label.split(/\s+and\s+|,\s*/)[0] + "…";
-      const tw = g.measureText(label).width, th = r * 1.8;
-      const cands = [[x + r * 1.2, y - r * 1.6], [x - r * 1.2 - tw, y - r * 1.6], [x - tw / 2, y + r * 0.9], [x - tw / 2, y - r * 3.6]];
-      for (const [lx, ly] of cands) {
-        const box = [lx - 3, ly - th / 2, lx + tw + 3, ly + th / 2];
-        if (box[0] < 2 || box[2] > W - 2 || box[1] < 2 || box[3] > H - 2) continue;
-        if (placed.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
-        placed.push(box);
-        g.fillStyle = "rgba(255,255,255,.85)"; g.fillRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
-        g.fillStyle = "#1a1a19"; g.fillText(label, lx, ly);
-        break;
-      }
-    });
-  }
   return cv.toDataURL("image/png");
 }
 // Timeline chart for the one-page PDF: same data as the dashboard, for the territories in this summary
@@ -2248,7 +2228,7 @@ async function buildPDF() {
   if (stacked) my = y + TL_H + 8; else { mx = M + tlW + 7; mw = CW - tlW - 7; }
   doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territory map", mx, my);
   doc.setFont("helvetica", "normal"); doc.setFontSize(stacked ? 6.5 : 5.8); doc.setTextColor(...mut);
-  doc.text(stacked ? "Pins: territorial / regional headquarters, coloured by status. Shaded: countries covered." : "Pins coloured by status. Shaded: countries covered.", mx + mw, my, { align: "right" });
+  doc.text(stacked ? "Pins: territorial / regional headquarters, coloured by status (see Status count). Shaded: countries covered." : "Pins coloured by status. Shaded: countries covered.", mx + mw, my, { align: "right" });
   const mapTop = my + 2.5, mapH = 284 - mapTop;
   if (mapH > 20) {
     try {
