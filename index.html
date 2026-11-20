@@ -202,6 +202,7 @@
   .cwg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
   .cwg-bar label { font-weight: 600; font-size: 13px; }
   .cwg-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cwg-pills .zone-grp { display: contents; }
   .cwg-pills button { border-radius: 999px; padding: 4px 12px; font-size: 12px; }
   .cwg-pills button.on { background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary); }
   .mini-lock { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 900; letter-spacing: -.5px; line-height: 1; }
@@ -396,7 +397,23 @@
   .seg button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 12px; }
   .seg button.on { background: var(--grid); font-weight: 600; }
   @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) {
+    /* KPIs: three compact boxes in one row */
+    .kpis { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .kpi.card { padding: 10px 10px 9px; }
+    .kpi .label { font-size: 11px; line-height: 1.25; min-height: 2.5em; }
+    .kpi .value { font-size: 22px; margin-top: 2px; }
+    .kpi .hint { font-size: 10.5px; line-height: 1.25; }
+    /* Zone / CWG: label on top, then "All" beside one row per zone */
+    .cwg-bar { display: block; margin-bottom: 12px; }
+    .cwg-bar label { display: block; margin-bottom: 6px; }
+    .cwg-pills { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 6px; }
+    .cwg-pills .zone-sep { display: none; }
+    .cwg-pills > button[data-cwg=""] { grid-row: span var(--zrows, 2); padding: 4px 14px; border-radius: 14px; }
+    .cwg-pills button { display: inline-flex; align-items: center; justify-content: center; padding: 7px 6px; min-width: 0; }
+    .cwg-pills button.zone-pill .zp-sub { display: none; }
+    .cwg-pills button.branded .mini-lock, .cwg-pills button.zone-pill .mini-lock { font-size: 14px; }
+  }
 
   /* ---------- phones ---------- */
   @media (max-width: 640px) {
@@ -976,7 +993,9 @@ function renderCwgBar() {
     return `<button data-cwg="${esc(v)}" class="${cwgFilter === v ? "on" : ""}${brand}" ${p ? `aria-label="${esc(p.zone + " " + p.num)} Cluster Working Group"` : z ? `aria-label="${esc(zoneLabel(z))}"` : ""}>${inner}</button>`;
   };
   const el = $("cwg-pills");
-  el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span>` + (z !== "OTHER" ? btn("zone:" + z, zoneLabel(z)) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("")).join("");
+  // each zone's buttons are grouped so phones can show one tidy row per zone
+  el.style.setProperty("--zrows", zl.length || 1);
+  el.innerHTML = btn("", "All") + zl.map(z => `<span class="zone-sep"></span><span class="zone-grp">` + (z !== "OTHER" ? btn("zone:" + z, zoneLabel(z)) : "") + cl.filter(c => zoneOfCwg(c) === z).map(c => btn(c, c)).join("") + `</span>`).join("");
   el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { cwgFilter = b.dataset.cwg; statusFilter = null; renderAll(); }));
   $("chart-title").textContent = cwgFilter ? `Territories by status — ${filterLabel(cwgFilter)}` : "Territories by status";
   $("cwg-options").innerHTML = [...new Set([...Object.values(DEFAULT_CWG), ...cl])].filter(c => c !== UNASSIGNED).map(c => `<option value="${esc(c)}">`).join("");
