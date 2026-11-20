@@ -1661,7 +1661,7 @@ async function pdfMapImage(list, wMM, hMM) {
     g.fillStyle = i >= 0 ? S_HEX[i] : "#888"; g.fill(); g.strokeStyle = "#ffffff"; g.lineWidth = 2.5; g.stroke();
     g.beginPath(); g.arc(x, y - r * 1.75, r * 0.38, 0, Math.PI * 2); g.fillStyle = "#fff"; g.fill();
   });
-  if (pts.length <= 12) {
+  {   // names where they fit without overlapping
     g.font = `600 ${Math.round(r * 1.5)}px Helvetica, Arial, sans-serif`; g.textBaseline = "middle";
     order.forEach(t => {
       const [x, y] = P(t.lng, t.lat);
@@ -1691,10 +1691,14 @@ async function buildPDF() {
   let y = 10;
   try { const logo = await logoDataURL(); doc.addImage(logo, "PNG", M, y, 92, 92 * 464 / 1600); } catch (e) {}
   y += 92 * 464 / 1600 + 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...ink);
-  doc.text(pdfSafe(cwgFilter ? `Community Development Strategies: ${filterLabel(cwgFilter)}` : "Community Development Strategies"), M, y);
+  const titleTxt = pdfSafe(cwgFilter ? `Community Development Strategies: ${filterLabel(cwgFilter)}` : "Community Development Strategies");
+  const asOf = pdfSafe(`Status as of ${fmtDate(todayISO())}`);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); const asOfW = doc.getTextWidth(asOf);
+  doc.setFont("helvetica", "bold"); let tfs = 16; doc.setFontSize(tfs);
+  while (doc.getTextWidth(titleTxt) > CW - asOfW - 6 && tfs > 11) { tfs -= 0.5; doc.setFontSize(tfs); }   // never overlap the date
+  doc.setTextColor(...ink); doc.text(titleTxt, M, y);
   doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...mut);
-  doc.text(pdfSafe(`Status as of ${fmtDate(todayISO())}`), PW - M, y, { align: "right" });
+  doc.text(asOf, PW - M, y, { align: "right" });
   y += 6;
 
   // KPIs
@@ -1718,11 +1722,10 @@ async function buildPDF() {
 
   // Chart (left) + status table (right)
   doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink);
-  const MX = M + 110, MW = CW - 110;   // map column (right)
-  doc.text("Territories by status", M, y); doc.text("Territory map", MX, y);
-  const secTop = y;
+  const rowsAll = viewTerr(), many = rowsAll.length > 12;   // many territories: tighter chart and table so the map still fits
+  doc.text("Territories by status", M, y); doc.text("Status count", M + 112, y);
   y += 4;
-  const cx = M + 7, cw = 98, ch = 44, cy0 = y + 4, base = cy0 + ch;
+  const cx = M + 7, cw = 100, ch = many ? 34 : 46, cy0 = y + 4, base = cy0 + ch;
   const max = Math.max(4, ...c), step = max <= 10 ? 1 : max <= 20 ? 2 : 5, top = Math.ceil(max / step) * step;
   doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
   for (let v = 0; v <= top; v += step) {
@@ -1743,46 +1746,31 @@ async function buildPDF() {
   });
   doc.setDrawColor(...mut); doc.setLineWidth(0.3); doc.line(cx, base, cx + cw, base);
 
-  // status count: compact legend under the chart (2 columns x 3 rows)
-  let ty = base + 15;
-  const lw = (100 - 4) / 2;
-  doc.setDrawColor(...line); doc.setLineWidth(0.2); doc.line(M, ty - 2.5, M + 100, ty - 2.5);
+  // status table (right)
+  const tx = M + 112, tw = CW - 112; let ty = y + 2;
+  doc.setFontSize(7); doc.setTextColor(...sub); doc.setFont("helvetica", "bold");
+  doc.text("Status", tx, ty + 3); doc.text("Count", tx + tw, ty + 3, { align: "right" });
+  ty += 5; doc.setDrawColor(...line); doc.line(tx, ty, tx + tw, ty);
+  doc.setFont("helvetica", "normal");
   STATUSES.forEach((st, i) => {
-    const col = i % 2, row = Math.floor(i / 2), lx = M + col * (lw + 4), ly = ty + row * 5.6;
-    doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(lx, ly - 2.3, 2.8, 2.8, 0.5, 0.5, "F");
-    doc.setFont("helvetica", "normal"); doc.setTextColor(...ink);
-    let fsz = 6.4; doc.setFontSize(fsz);
-    while (doc.getTextWidth(st.label) > lw - 9 && fsz > 5) { fsz -= 0.2; doc.setFontSize(fsz); }   // shrink to fit, never cut
-    doc.text(st.label, lx + 4, ly); doc.setFontSize(6.4);
-    doc.setFont("helvetica", "bold"); doc.text(String(c[i]), lx + lw, ly, { align: "right" });
+    const lines = doc.splitTextToSize(st.label, tw - 16);
+    const rh = many ? Math.max(5.2, lines.length * 2.7 + 2.2) : Math.max(7, lines.length * 3 + 3);
+    doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(tx, ty + rh / 2 - 1.6, 3.2, 3.2, 0.6, 0.6, "F");
+    doc.setFontSize(7); doc.setTextColor(...ink); doc.text(lines, tx + 5, ty + rh / 2 - (lines.length - 1) * 1.4 + 1);
+    doc.text(String(c[i]), tx + tw, ty + rh / 2 + 1, { align: "right" });
+    ty += rh; doc.setDrawColor(236, 235, 231); doc.line(tx, ty, tx + tw, ty);
   });
-  ty += 3 * 5.6;
-  doc.setDrawColor(...line); doc.line(M, ty - 2.5, M + 100, ty - 2.5);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(6.8); doc.setTextColor(...ink);
-  doc.text("Total territories", M, ty + 1.5); doc.text(String(total), M + 100, ty + 1.5, { align: "right" });
-  ty += 5;
-
-  // territory map (right column), zoomed to the territories in this summary
-  const mapTop = secTop + 3, mapH = ty - mapTop;
-  try {
-    const img = await pdfMapImage(viewTerr(), MW, mapH);
-    if (img) {
-      doc.addImage(img, "PNG", MX, mapTop, MW, mapH);
-      doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(MX, mapTop, MW, mapH, 1.5, 1.5, "S");
-    }
-  } catch (e) {}
-  doc.setFont("helvetica", "normal"); doc.setFontSize(5.8); doc.setTextColor(...mut);
-  doc.text("Pins: territorial / regional headquarters, coloured by status. Shaded: countries covered.", MX, ty + 1.5, { maxWidth: MW });
-  ty += 3;
+  doc.setFont("helvetica", "bold"); doc.text("Total", tx + 5, ty + 4.5); doc.text(String(total), tx + tw, ty + 4.5, { align: "right" });
+  ty += 7;
 
   // territory table
-  y = ty + 6;
+  y = Math.max(base + 13, ty + 5);
   doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territories", M, y);
   y += 3;
   const rows = sortedTerr(viewTerr());
   const cols = [["Territory", 64], ["CWG", 17], ["Focal person", 34], ["Target", 15], ["Status", 33], ["Last updated", 19]];
-  const avail = 285 - y;
-  const rh = Math.min(6.2, avail / (rows.length + 1));
+  const MAP_MIN = 48;
+  const rh = Math.max(4.2, Math.min(6.2, (285 - y - MAP_MIN - 10) / (rows.length + 1)));
   const fs = rh < 5 ? 6.2 : 7.2;
   doc.setFillColor(244, 244, 242); doc.rect(M, y, CW, rh, "F");
   doc.setFontSize(fs); doc.setTextColor(...sub);
@@ -1811,6 +1799,19 @@ async function buildPDF() {
     y += rh;
   });
   doc.setDrawColor(...line); doc.line(M, y, M + CW, y);
+
+  // territory map: fills the rest of the page, zoomed to the territories in this summary
+  y += 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territory map", M, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut);
+  doc.text("Pins: territorial / regional headquarters, coloured by status. Shaded: countries covered.", PW - M, y, { align: "right" });
+  const mapTop = y + 2.5, mapH = 284 - mapTop;
+  if (mapH > 20) {
+    try {
+      const img = await pdfMapImage(rows, CW, mapH);
+      if (img) { doc.addImage(img, "PNG", M, mapTop, CW, mapH); doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(M, mapTop, CW, mapH, 1.5, 1.5, "S"); }
+    } catch (e) {}
+  }
   doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut);
   doc.text("(c) 2026 Asia-Pacific Sharing & Learning Programme (ASLP), The Salvation Army. All rights reserved.", M, 291);
   doc.text(pdfSafe(`Generated ${new Date().toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`), PW - M, 291, { align: "right" });
