@@ -64,7 +64,7 @@
   h2 { font-size: 15px; margin: 0 0 12px; }
   .sub { color: var(--text-secondary); margin-top: 4px; }
   .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
   .kpi .label { color: var(--text-secondary); font-size: 12px; }
   .kpi .value { font-size: 26px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
   .kpi .hint { color: var(--text-muted); font-size: 12px; }
@@ -318,7 +318,8 @@
   .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
   .seg button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 12px; }
   .seg button.on { background: var(--grid); font-weight: 600; }
-  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } }
 
   /* ---------- phones ---------- */
   @media (max-width: 640px) {
@@ -389,7 +390,6 @@
     <div class="card kpi"><div class="label">Territories</div><div class="value" id="k-total">–</div><div class="hint">being tracked</div></div>
     <div class="card kpi"><div class="label">Approved or implementing</div><div class="value" id="k-approved">–</div><div class="hint" id="k-approved-pct">&nbsp;</div></div>
     <div class="card kpi"><div class="label">Still in drafting stages</div><div class="value" id="k-progress">–</div><div class="hint">not started → submitted</div></div>
-    <div class="card kpi"><div class="label">Most recent update</div><div class="value" id="k-last" style="font-size:20px">–</div><div class="hint" id="k-last-who">&nbsp;</div></div>
   </section>
 
   <section class="grid2">
@@ -852,11 +852,6 @@ function renderKpis() {
   $("k-approved").textContent = done;
   $("k-approved-pct").textContent = total ? `${Math.round(done / total * 100)}% of territories` : " ";
   $("k-progress").textContent = c[0] + c[1] + c[2] + c[3];
-  const latest = latestInfo();
-  if (latest) {
-    $("k-last").textContent = fmtDate(latest.date);
-    $("k-last-who").textContent = latest.name || "";
-  } else { $("k-last").textContent = "–"; $("k-last-who").textContent = "no updates logged yet"; }
 }
 
 function renderSummary() {
