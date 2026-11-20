@@ -23,7 +23,7 @@
     --accent: #2a78d6;
     --accent-ink: #ffffff;
     /* ASLP logo colours: navy → Listen blue → Learn yellow → rust → ASLP blue → Lead orange */
-    --s0: #24215f; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #005fc0; --s5: #e04c1e;
+    --s0: #24215f; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #005fc0; --s5: #e04c1e; --s6: #6f6e69;
     --danger: #c03a39;
     --ok-bg: #e7f3e7; --ok-ink: #145c14;
   }
@@ -33,7 +33,7 @@
       --surface-0: #121211; --surface-1: #1a1a19; --border: #2f2f2c; --grid: #262624;
       --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
       --accent: #3987e5;
-      --s0: #4a46a8; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #2f7fd6; --s5: #e04c1e;
+      --s0: #4a46a8; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #2f7fd6; --s5: #e04c1e; --s6: #9a9993;
       --ok-bg: #16301a; --ok-ink: #8fd88f;
     }
   }
@@ -42,7 +42,7 @@
     --surface-0: #121211; --surface-1: #1a1a19; --border: #2f2f2c; --grid: #262624;
     --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
     --accent: #3987e5;
-    --s0: #4a46a8; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #2f7fd6; --s5: #e04c1e;
+    --s0: #4a46a8; --s1: #0a84ff; --s2: #f5c400; --s3: #c0391e; --s4: #2f7fd6; --s5: #e04c1e; --s6: #9a9993;
     --ok-bg: #16301a; --ok-ink: #8fd88f;
   }
   * { box-sizing: border-box; }
@@ -323,6 +323,21 @@
   @media (max-width: 480px) { .role-pick { grid-template-columns: 1fr; } }
   .office-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
   .office-row { display: grid; grid-template-columns: 1fr 92px 92px auto; gap: 6px; }
+  .office-row.appr-row { grid-template-columns: 1fr 150px auto; }
+  @media (max-width: 520px) { .office-row.appr-row { grid-template-columns: 1fr auto; } .appr-row [data-a=date] { grid-column: 1; } }
+  .status-def { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+  .flag-box { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, #f5c400 14%, transparent); border: 1px solid color-mix(in srgb, #f5c400 55%, transparent); font-size: 13px; }
+  .flag-box ul { margin: 4px 0 6px 18px; padding: 0; } .flag-box li { margin: 2px 0; } .flag-box .muted { font-size: 12px; }
+  .flag-pill { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; background: color-mix(in srgb, #f5c400 30%, transparent); color: var(--text); cursor: help; vertical-align: middle; }
+  .cycle-box { margin-top: 14px; padding: 12px; border: 1px dashed var(--border, #d9d8d3); border-radius: 8px; font-size: 13px; }
+  .cycle-box p { margin: 4px 0; } .cyc-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; } .cyc-q { font-weight: 600; margin-right: 4px; }
+  .k-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .past-cycles { margin-top: 16px; border-top: 1px solid var(--border, #e2e1dc); padding-top: 12px; }
+  .pc-row { display: grid; grid-template-columns: repeat(4, minmax(110px, auto)); gap: 6px 28px; padding: 8px 0; border-bottom: 1px solid var(--border, #eeede9); }
+  .pc-row .k { font-size: 12px; color: var(--text-secondary); } .pc-row .v { font-weight: 600; margin-top: 2px; }
+  @media (max-width: 700px) { .pc-row { grid-template-columns: 1fr 1fr; } }
+  .status-guide { margin-top: 12px; font-size: 13px; } .status-guide summary { cursor: pointer; font-weight: 600; }
+  .status-guide ol { margin: 6px 0 0 18px; padding: 0; } .status-guide li { margin: 5px 0; line-height: 1.45; } .status-guide .sw { margin-right: 6px; }
   @media (max-width: 520px) { .office-row { grid-template-columns: 1fr 1fr auto; } .office-row [data-o=name] { grid-column: 1 / -1; } }
   .chip-picker input { flex: 1; }
   .office-pin svg { display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
@@ -404,8 +419,8 @@
   <div class="cwg-bar"><label>Zone / CWG</label><div class="cwg-pills" id="cwg-pills" role="group" aria-label="Filter by CWG"></div></div>
   <section class="kpis">
     <div class="card kpi"><div class="label">Territories</div><div class="value" id="k-total">–</div><div class="hint">being tracked</div></div>
-    <div class="card kpi"><div class="label">Approved or implementing</div><div class="value" id="k-approved">–</div><div class="hint" id="k-approved-pct">&nbsp;</div></div>
-    <div class="card kpi"><div class="label">Still in drafting stages</div><div class="value" id="k-progress">–</div><div class="hint">not started → submitted</div></div>
+    <div class="card kpi"><div class="label">Approved strategies</div><div class="value" id="k-approved">–</div><div class="hint" id="k-approved-pct">&nbsp;</div></div>
+    <div class="card kpi"><div class="label">Not yet approved</div><div class="value" id="k-progress">–</div><div class="hint">not started → submitted</div></div>
   </section>
 
   <section class="grid2">
@@ -417,6 +432,9 @@
         <tfoot><tr><td><strong>Total</strong></td><td class="num"><strong id="sum-total">0</strong></td></tr></tfoot>
       </table>
       <div class="muted" style="font-size:12px;margin-top:10px">Click a status (here or on the chart) to filter the map.</div>
+      <details class="status-guide"><summary>What do the statuses mean?</summary>
+        <p class="muted">Each territory is at the <strong>furthest milestone it has actually reached</strong>, so it is only ever in one status.</p>
+        <ol id="status-guide-list"></ol></details>
     </div>
     <div class="card">
       <h2 id="chart-title">Territories by status</h2>
@@ -534,7 +552,8 @@
         <div class="hint help"><p><strong>Who can update</strong></p><ul><li><strong>Focal person:</strong> status and CD Strategy details</li><li><strong>Backup person:</strong> status only</li><li><strong>CWG leads and programme coordinators:</strong> their territories</li></ul><p>To edit CD Strategy details, <strong>sign in first</strong> (Sign in → CD Focal Person or Admin).</p><p>Your email is recorded with every update.</p></div>
       </div>
       <div id="step-1" hidden>
-        <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select></div>
+        <div class="field"><label for="f-status">CD Strategy status</label><select id="f-status"></select>
+          <div class="status-def" id="f-status-def"></div><div class="flag-box" id="f-status-flags" hidden></div></div>
         <div class="field"><label for="f-date">Date of update</label><input type="date" id="f-date"></div>
         <div class="field"><label for="f-note">Note (optional)</label><textarea id="f-note" maxlength="1000" placeholder="e.g. Draft shared with THQ for comment"></textarea></div>
       </div>
@@ -557,7 +576,11 @@
             <div class="field"><label for="f-period-to">Strategy period: to</label><select id="f-period-to"></select></div>
           </div>
           <div class="field" id="f-target-wrap"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
-          <div class="field"><label for="f-appdate" id="f-appdate-label">Territorial approval date</label><input type="date" id="f-appdate" min="2000-01-01"><div class="hint">The date the CD Strategy was approved. Leave empty if it isn't approved yet.</div></div>
+          <div class="field"><label id="f-appdate-label">Approving bodies and approval dates</label>
+            <div class="hint" style="margin:0 0 6px">Add every body that approves the CD Strategy (e.g. Territorial Cabinet, Territorial Board), with the date each one approved it. Leave the date empty until that body has approved it.</div>
+            <div id="f-approvals" class="office-rows"></div>
+            <div><button type="button" class="small" id="f-appr-add">+ Add approving body</button></div>
+          </div>
           <div class="field"><label for="f-doc">Document link</label><input type="url" id="f-doc" maxlength="1000" placeholder="https://… (SharePoint, OneDrive, Google Drive)"></div>
           <div class="field"><label for="f-cwg">CWG</label><input type="text" id="f-cwg" maxlength="60" list="cwg-options"><datalist id="cwg-options"></datalist></div>
           <div class="field"><label for="f-country-in">Countries in this territory</label>
@@ -575,6 +598,7 @@
             <div id="f-offices" class="office-rows"></div>
             <div><button type="button" class="small" id="f-office-add">+ Add office</button></div>
           </div>
+          <div class="cycle-box" id="f-cycle" hidden></div>
         </div>
       </div>
       <div class="err" id="dlg-err"></div>
@@ -688,15 +712,17 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// Milestone-based statuses: a territory is at the furthest milestone it has actually reached, so it is only ever in one status.
 const STATUSES = [
-  { key: "not_started",  label: "Not yet started" },
-  { key: "workshop",     label: "Consultation workshop being planned" },
-  { key: "drafting",     label: "CD Strategy being drafted" },
-  { key: "submitted",    label: "Draft submitted for approval" },
-  { key: "approved",     label: "Approved by the board" },
-  { key: "implementing", label: "CD Strategy being implemented" },
+  { key: "not_started",  label: "Not started",            here: "No consultation workshop date has been confirmed yet.", next: "a workshop date is confirmed" },
+  { key: "workshop",     label: "Consultation scheduled", here: "The consultation workshop has a confirmed date but hasn't happened yet.", next: "the workshop is held" },
+  { key: "drafting",     label: "Drafting",               here: "The workshop has been held (or skipped), but no complete draft has been formally submitted. Also use this when a draft is sent back for revision.", next: "the full draft is submitted for approval" },
+  { key: "submitted",    label: "Submitted for approval", here: "The draft is with the approving body or bodies, with no final decision yet.", next: "it is approved, or sent back for revision (back to Drafting)" },
+  { key: "approved",     label: "Approved",               here: "The strategy has been approved, but implementation hasn't started yet (e.g. approved in 2026, implementation from 2027).", next: "implementation starts" },
+  { key: "implementing", label: "In implementation",      here: "The strategy is approved and its implementation has started.", next: "the strategy period ends" },
+  { key: "ended",        label: "Period ended",           here: "The strategy period is over and the strategy is due for review or renewal.", next: "a new strategy cycle is started" },
 ];
-const SHORT = ["Not yet started", "Workshop planned", "Being drafted", "Submitted for approval", "Approved", "Being implemented"];
+const SHORT = STATUSES.map(s => s.label);
 const sIndex = k => STATUSES.findIndex(s => s.key === k);
 const sColor = i => `var(--s${i})`;
 
@@ -812,7 +838,7 @@ const ZONES = [
   { key: "SASIA", label: "South Asia (SASIA)", test: c => /^(sasia|south asia)/i.test(c) },
 ];
 // No approval target once the strategy is being implemented
-const targetOf = t => t.status === "implementing" ? "" : (t.target || "");
+const targetOf = t => sIndex(t.status) >= 4 ? "" : (t.target || "");
 const cwgOf = t => (t.cwg || "").trim() || DEFAULT_CWG[t.id] || UNASSIGNED;
 const zoneOfCwg = c => (ZONES.find(z => z.test(c)) || { key: "OTHER" }).key;
 const zoneOf = t => zoneOfCwg(cwgOf(t));
@@ -891,7 +917,7 @@ function latestInfo() {
 function renderKpis() {
   const c = counts(), total = viewTerr().length;
   $("k-total").textContent = total;
-  const done = c[4] + c[5];
+  const done = c[4] + c[5] + c[6];
   $("k-approved").textContent = done;
   $("k-approved-pct").textContent = total ? `${Math.round(done / total * 100)}% of territories` : " ";
   $("k-progress").textContent = c[0] + c[1] + c[2] + c[3];
@@ -966,21 +992,24 @@ function renderChart() {
 }
 
 // Strategy implementation timeline: strategies starting / ending per year, for the next 10 years (follows the zone/CWG filter)
-function strategyYears(t) {
-  const m = String(t.strategyPeriod || "").match(/(\d{4})\D+(\d{4})/);
+function periodYears(v) {
+  const m = String(v || "").match(/(\d{4})\D+(\d{4})/);
   if (m) { const a = +m[1], b = +m[2]; return a <= b ? [a, b] : [b, a]; }
-  const one = String(t.strategyPeriod || "").match(/^\s*(\d{4})\s*$/);
+  const one = String(v || "").match(/^\s*(\d{4})\s*$/);
   return one ? [+one[1], +one[1]] : null;
 }
+const strategyYears = t => periodYears(t.strategyPeriod);
 function timelineData(list) {
   const Y0 = new Date().getFullYear(), years = Array.from({ length: 10 }, (_, k) => Y0 + k);
-  const withP = list.map(t => ({ t, p: strategyYears(t) })).filter(x => x.p);
+  // every strategy cycle counts: the current one and any previous ones kept when a new cycle started
+  const withP = list.flatMap(t => [{ t, p: strategyYears(t) }, ...(t.pastCycles || []).map(c => ({ t, p: periodYears(c.period) }))]).filter(x => x.p);
+  const covered = list.filter(t => strategyYears(t) || (t.pastCycles || []).some(c => periodYears(c.period))).length;
   const starts = years.map(y => withP.filter(x => x.p[0] === y)), ends = years.map(y => withP.filter(x => x.p[1] === y));
   const active = years.map(y => withP.filter(x => x.p[0] <= y && y <= x.p[1]).length);
-  return { years, withP, starts, ends, active };
+  return { years, withP, starts, ends, active, covered };
 }
 function renderTimeline() {
-  const list = viewTerr(), { years, withP, starts, ends, active } = timelineData(list);
+  const list = viewTerr(), { years, withP, starts, ends, active, covered } = timelineData(list);
   $("tl-title").textContent = `Strategy implementation by year, ${years[0]}–${years[years.length - 1]}`;
   const W = 1000, H = 300, m = { t: 22, r: 8, b: 28, l: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
   const max = Math.max(3, ...starts.map(a => a.length), ...ends.map(a => a.length));
@@ -1028,9 +1057,9 @@ function renderTimeline() {
   $("tl-body").innerHTML = row(`<span class="sw" style="background:var(--tl-start)"></span>Starting`, starts.map(a => a.length))
     + row(`<span class="sw" style="background:var(--tl-end)"></span>Ending`, ends.map(a => a.length))
     + row("In implementation", active, "tl-active");
-  const missing = list.length - withP.length;
+  const missing = list.length - covered;
   $("tl-note").innerHTML = missing
-    ? `${withP.length} of ${list.length} territories have a strategy period. <strong>${missing}</strong> ${missing === 1 ? "doesn't" : "don't"} have one yet and ${missing === 1 ? "isn't" : "aren't"} counted. Focal persons, CWG leads and admins can add it in the CD Strategy details.`
+    ? `${covered} of ${list.length} territories have a strategy period. <strong>${missing}</strong> ${missing === 1 ? "doesn't" : "don't"} have one yet and ${missing === 1 ? "isn't" : "aren't"} counted. Focal persons, CWG leads and admins can add it in the CD Strategy details.`
     : `All ${list.length} territories have a strategy period.`;
 }
 
@@ -1048,7 +1077,7 @@ function renderTable() {
 
 /* ---------- territory map (Leaflet) ---------- */
 let map = null, tileLayer = null, markerLayer = null, lastFitKey = "";
-const MAP_HEX = ["#24215f", "#0a84ff", "#f5c400", "#c0391e", "#005fc0", "#e04c1e"];
+const MAP_HEX = ["#24215f", "#0a84ff", "#f5c400", "#c0391e", "#005fc0", "#e04c1e", "#6f6e69"];
 function isDark() {
   const a = document.documentElement.getAttribute("data-theme");
   return a ? a === "dark" : window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
@@ -1157,7 +1186,7 @@ async function resolveNames() {}
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
   ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
-  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["approvalDate", "Approval date", "f-appdate"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
+  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
 ];
 const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
@@ -1214,6 +1243,39 @@ function renderOfficeRows() {
   $("f-offices").querySelectorAll("button[data-oi]").forEach(b => b.addEventListener("click", () => { readOfficeRows(); editOffices.splice(+b.dataset.oi, 1); renderOfficeRows(); }));
 }
 $("f-office-add").addEventListener("click", () => { readOfficeRows(); editOffices.push({ name: "", lat: "", lng: "" }); renderOfficeRows(); $("f-offices").querySelector(".office-row:last-child [data-o=name]").focus(); });
+// approving bodies editor
+let editApprovals = [];
+function readApprovalRows() {
+  editApprovals = [...$("f-approvals").querySelectorAll(".office-row")].map(r => ({ body: r.querySelector("[data-a=body]").value, date: r.querySelector("[data-a=date]").value }));
+}
+function renderApprovalRows() {
+  $("f-approvals").innerHTML = editApprovals.map((a, i) => `<div class="office-row appr-row">
+      <input type="text" data-a="body" maxlength="120" placeholder="Approving body, e.g. Territorial Cabinet" aria-label="Approving body ${i + 1}" value="${esc(a.body)}">
+      <input type="date" data-a="date" min="2000-01-01" aria-label="Approval date ${i + 1}" value="${esc(a.date)}">
+      <button type="button" class="small" data-ai="${i}" aria-label="Remove approving body ${i + 1}">×</button></div>`).join("") || '<span class="muted" style="font-size:12px">No approving bodies yet.</span>';
+  $("f-approvals").querySelectorAll("button[data-ai]").forEach(b => b.addEventListener("click", () => { readApprovalRows(); editApprovals.splice(+b.dataset.ai, 1); renderApprovalRows(); }));
+}
+$("f-appr-add").addEventListener("click", () => { readApprovalRows(); editApprovals.push({ body: "", date: "" }); renderApprovalRows(); $("f-approvals").querySelector(".office-row:last-child [data-a=body]").focus(); });
+// new strategy cycle: the current period, approvals and document move to "Previous strategy cycles"
+function renderCycleBox(t) {
+  const box = $("f-cycle"), hasCur = !!(t.strategyPeriod || (t.approvals || []).length || t.docLink);
+  box.hidden = !hasCur;
+  if (!hasCur) return;
+  box.innerHTML = `<div class="k-title">New strategy cycle</div>
+    <p>When this strategy${t.strategyPeriod ? ` (${esc(t.strategyPeriod)})` : ""} has ended and the territory starts on its next one, start a new cycle.</p>
+    <p>The current strategy period, approving bodies and document link are kept under <strong>Previous strategy cycles</strong>, and the status goes back to <strong>Not started</strong>.</p>
+    <div class="cyc-actions"><button type="button" class="small" id="cyc-start">Start a new strategy cycle</button></div>`;
+  $("cyc-start").addEventListener("click", () => {
+    box.querySelector(".cyc-actions").innerHTML = `<span class="cyc-q">Keep ${t.strategyPeriod ? esc(t.strategyPeriod) : "the current strategy"} as a previous cycle and start a new one?</span>
+      <button type="button" class="small aslp-btn" id="cyc-yes">Yes, start new cycle</button> <button type="button" class="small" id="cyc-no">Cancel</button>`;
+    $("cyc-no").addEventListener("click", () => renderCycleBox(t));
+    $("cyc-yes").addEventListener("click", async () => {
+      $("cyc-yes").disabled = true; $("dlg-err").textContent = "";
+      try { await rpc("start_new_cycle", { p_territory: t.id, p_note: "" }); ed.detailsSaved = true; finishDialog(); }
+      catch (err) { $("cyc-yes").disabled = false; $("dlg-err").textContent = errMsg(err); }
+    });
+  });
+}
 // countries picker
 let editCountries = [];
 function renderCountryPicker() {
@@ -1231,6 +1293,15 @@ function addCountry() {
 $("f-country-add").addEventListener("click", addCountry);
 $("f-country-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addCountry(); } });
 $("f-status").innerHTML = STATUSES.map(st => `<option value="${st.key}">${esc(st.label)}</option>`).join("");
+$("status-guide-list").innerHTML = STATUSES.map((st, i) => `<li><span class="sw" style="background:${sColor(i)}"></span><strong>${esc(st.label)}</strong>: ${esc(st.here)} <span class="muted">Moves on when ${esc(st.next)}.</span></li>`).join("");
+function renderStatusDef() {
+  const i = sIndex($("f-status").value), st = STATUSES[i]; if (!st) return;
+  $("f-status-def").innerHTML = `<strong>Use this when:</strong> ${esc(st.here)}<br><strong>Next status when:</strong> ${esc(st.next)}.`;
+  const fl = ed && ed.terr ? statusFlags(ed.terr, st.key) : [];
+  $("f-status-flags").hidden = !fl.length;
+  $("f-status-flags").innerHTML = fl.length ? `<strong>Please check</strong><ul>${fl.map(f => `<li>${esc(f)}</li>`).join("")}</ul><div class="muted">This is only a reminder. You can still save this status.</div>` : "";
+}
+$("f-status").addEventListener("change", renderStatusDef);
 function setStep(n) {
   ed.step = n;
   $("step-0").hidden = n !== 0; $("step-1").hidden = n !== 1; $("step-2").hidden = n !== 2;
@@ -1254,8 +1325,8 @@ function setStep(n) {
       $("f-loc-label").textContent = `${hqLabel(t)} (${hqAbbr(t)})`;
       editOffices = (t.offices || []).map(o => ({ name: o.name || "", lat: o.lat ?? "", lng: o.lng ?? "" })); renderOfficeRows();
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
-      $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
-      $("f-appdate-label").textContent = isRegion(t) ? "Regional approval date" : "Territorial approval date";
+      $("f-target-wrap").style.display = sIndex(t.status) >= 4 ? "none" : "";
+      editApprovals = (t.approvals || []).map(a => ({ body: a.body || "", date: a.date || "" })); if (!editApprovals.length) editApprovals.push({ body: "", date: "" }); renderApprovalRows(); renderCycleBox(t);
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details"; skip.hidden = true;
       $("dlg-current").textContent = signedInAs(ed.email) ? `Signed in as ${role}` : `Verified as ${role}: ${ed.email}`;
@@ -1303,6 +1374,7 @@ function chooseTerritory(m) {
   const i = sIndex(t.status);
   $("dlg-current").textContent = `${signedInAs(ed.email) ? `Signed in as ${m.role}` : `Verified as ${m.role}: ${ed.email}`} · current status: ${i >= 0 ? STATUSES[i].label : "—"}`;
   $("f-status").value = t.status || STATUSES[0].key;
+  renderStatusDef();
 }
 $("upd-btn").addEventListener("click", () => { if (db) openDialog(); });
 async function finishDialog() {
@@ -1371,6 +1443,10 @@ $("dlg-form").addEventListener("submit", async e => {
     const vals = Object.fromEntries(DETAIL_FIELDS.map(([k, , id]) => [k, $(id).value.trim()]));
     vals.countries = editCountries;
     vals.offices = offices.map(o => ({ name: o.name, lat: o.lat === "" ? null : +o.lat, lng: o.lng === "" ? null : +o.lng }));
+    readApprovalRows();
+    const apps = editApprovals.map(a => ({ body: String(a.body).trim(), date: a.date })).filter(a => a.body || a.date);
+    if (apps.some(a => !a.body)) { $("dlg-err").textContent = "Please name the approving body for each approval date (or remove the empty row)."; return; }
+    vals.approvals = apps;
     if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
     if (vals.focalEmail) vals.focalEmail = normEmail(vals.focalEmail);
@@ -1496,6 +1572,19 @@ $("db-cwg").addEventListener("change", renderDatabase);
 $("db-clear").addEventListener("click", () => { $("db-search").value = ""; $("db-status").value = ""; $("db-cwg").value = ""; renderDatabase(); });
 const badge = k => { const i = sIndex(k); return i >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(i)};margin:0"></span>${esc(STATUSES[i].label)}</span>` : '<span class="muted">—</span>'; };
 const canUpdate = () => !!(canWrite && db && !summaryMode);
+const approvalsHtml = a => (a || []).length ? a.map(x => `${esc(x.body || "Approval")}<span class="muted" style="font-weight:400"> · ${x.date ? esc(fmtDate(x.date)) : "not yet approved"}</span>`).join("<br>") : "—";
+// Soft checks for editors: never change the status, only point out what doesn't add up
+function statusFlags(t, statusKey) {
+  const k = statusKey || t.status, i = sIndex(k), f = [], yr = new Date().getFullYear(), p = strategyYears(t);
+  const dated = (t.approvals || []).some(a => a.date);
+  if (i >= 4 && !dated) f.push(`Status is "${STATUSES[i].label}", but no approval date has been added yet. Add the approving body and date in the CD Strategy details.`);
+  if (i >= 4 && !p) f.push(`Status is "${STATUSES[i].label}", but there's no strategy period yet.`);
+  if (k === "implementing" && p && p[0] > yr) f.push(`Status is "In implementation", but the strategy period only starts in ${p[0]}. If implementation hasn't started, "Approved" may fit better.`);
+  if ((k === "approved" || k === "implementing") && p && p[1] < yr) f.push(`The strategy period ended in ${p[1]}. If so, the status may be "Period ended".`);
+  if (k === "ended" && p && p[1] >= yr) f.push(`Status is "Period ended", but the strategy period runs until ${p[1]}.`);
+  if (i >= 0 && i < 4 && p && p[1] < yr) f.push(`The strategy period (${t.strategyPeriod}) is already over, but the strategy isn't approved yet. Please check the period.`);
+  return f;
+}
 function renderDatabase() {
   if (typeof currentView === "undefined" || currentView !== "database") return;
   $("db-list").hidden = !!detailId;
@@ -1527,7 +1616,7 @@ function renderDatabase() {
   const groups = cl.filter(c => rows.some(r => cwgOf(r) === c));
   const rowHtml = r => `<tr class="clickable" data-tid="${esc(r.id)}" tabindex="0">
       <td class="c-name"><a class="tname" href="#territory-${esc(r.id)}">${esc(r.name)}</a></td><td class="c-focal" data-label="Focal person">${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td><td class="nowrap c-target" data-label="Target">${esc(targetOf(r)) || '<span class="muted">—</span>'}</td>
-      <td class="c-status">${badge(r.status)}</td><td class="nowrap c-last" data-label="Last updated">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td><td class="num c-upd" data-label="Updates">${r.updates}</td>
+      <td class="c-status">${badge(r.status)}${upd && canEditTerr(r.id) && statusFlags(r).length ? `<span class="flag-pill" title="${esc(statusFlags(r).join("\n"))}">Check</span>` : ""}</td><td class="nowrap c-last" data-label="Last updated">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td><td class="num c-upd" data-label="Updates">${r.updates}</td>
       ${upd ? `<td class="c-edit" style="text-align:right">${canEditTerr(r.id) ? `<button class="small aslp-btn" data-upd="${esc(r.id)}">Edit</button>` : ""}</td>` : ""}</tr>`;
   let lastZone = null;
   $("db-body").innerHTML = groups.map(g => {
@@ -1631,14 +1720,20 @@ function renderDetail() {
       ${t.focalEmail ? `<div><div class="k">Focal email</div><div class="v">${esc(t.focalEmail)}</div></div>` : ""}
       ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
-      ${t.status === "implementing" ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
-      <div><div class="k">${isRegion(t) ? "Regional" : "Territorial"} approval date</div><div class="v">${t.approvalDate ? esc(fmtDate(t.approvalDate)) : "—"}</div></div>
+      ${sIndex(t.status) >= 4 ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
+      <div><div class="k">Approving bodies</div><div class="v">${approvalsHtml(t.approvals)}</div></div>
       <div><div class="k">${hqLabel(t)}</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
       ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / divisional / national offices" : "Regional / divisional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
       <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
       <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
-    </div>`;
+    </div>
+    ${canEditTerr(t.id) && statusFlags(t).length ? `<div class="flag-box" role="note"><strong>Please check</strong><ul>${statusFlags(t).map(f => `<li>${esc(f)}</li>`).join("")}</ul><div class="muted">These are reminders only. The status stays as the focal person set it. Only people who can edit this territory see them.</div></div>` : ""}
+    ${(t.pastCycles || []).length ? `<div class="past-cycles"><div class="k-title">Previous strategy cycles</div>${[...t.pastCycles].reverse().map(c => `<div class="pc-row">
+      <div><div class="k">Strategy period</div><div class="v">${esc(c.period || "—")}</div></div>
+      <div><div class="k">Approving bodies</div><div class="v">${approvalsHtml(c.approvals)}</div></div>
+      <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(c.docLink || "") ? `<a href="${esc(c.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
+      <div><div class="k">New cycle started</div><div class="v">${c.archivedOn ? esc(fmtDate(c.archivedOn)) : "—"}</div></div></div>`).join("")}</div>` : ""}`;
   const te = $("td-edit"); if (te) te.addEventListener("click", () => openDialog(t.id));
   $("td-xlsx").hidden = !canEditTerr(t.id);
   renderMiniMap(t);
@@ -1708,8 +1803,8 @@ $("ddlg-ok").addEventListener("click", async () => {
 });
 
 /* ---------- downloads (PDF one-pager + Excel) ---------- */
-const S_HEX = ["#24215f", "#0a84ff", "#f5c400", "#c0391e", "#005fc0", "#e04c1e"];
-const S_INK = ["#ffffff", "#ffffff", "#1a1a19", "#ffffff", "#ffffff", "#ffffff"];
+const S_HEX = ["#24215f", "#0a84ff", "#f5c400", "#c0391e", "#005fc0", "#e04c1e", "#6f6e69"];
+const S_INK = ["#ffffff", "#ffffff", "#1a1a19", "#ffffff", "#ffffff", "#ffffff", "#ffffff"];
 const loaded = {};
 function loadScript(src) {
   if (!loaded[src]) loaded[src] = new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = () => { delete loaded[src]; rej(new Error("load")); }; document.head.appendChild(el); });
@@ -1805,7 +1900,7 @@ async function pdfMapImage(list, wMM, hMM) {
 }
 // Timeline chart for the one-page PDF: same data as the dashboard, for the territories in this summary
 function pdfTimeline(doc, list, X, Y, W, H) {
-  const { years, withP, starts, ends, active } = timelineData(list);
+  const { years, withP, starts, ends, active, covered } = timelineData(list);
   const ink = [11, 11, 11], sub = [82, 81, 78], mut = [122, 121, 116];
   const cS = hexRGB("#005fc0"), cE = hexRGB("#e04c1e");
   doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink);
@@ -1846,8 +1941,8 @@ function pdfTimeline(doc, list, X, Y, W, H) {
   doc.setDrawColor(...mut); doc.setLineWidth(0.3); doc.line(cx, base, cx + cw, base);
   doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); doc.setTextColor(...mut);
   doc.text("Active", cx - 1.5, base + 6.6, { align: "right" });
-  const missing = list.length - withP.length;
-  const note = missing ? `${withP.length} of ${list.length} territories have a strategy period; ${missing} not counted yet.` : `All ${list.length} territories have a strategy period.`;
+  const missing = list.length - covered;
+  const note = missing ? `${covered} of ${list.length} territories have a strategy period; ${missing} not counted yet.` : `All ${list.length} territories have a strategy period.`;
   doc.text(doc.splitTextToSize(pdfSafe(note + " Active = strategies in implementation that year."), W).slice(0, 2), X, Y + H - 2.8);
 }
 
@@ -1871,11 +1966,11 @@ async function buildPDF() {
   y += 6;
 
   // KPIs
-  const c = counts(), total = viewTerr().length, done = c[4] + c[5];
+  const c = counts(), total = viewTerr().length, done = c[4] + c[5] + c[6];
   const kpis = [
     ["Territories", String(total), "being tracked"],
-    ["Approved or implementing", String(done), total ? `${Math.round(done / total * 100)}% of territories` : ""],
-    ["Still in drafting stages", String(c[0] + c[1] + c[2] + c[3]), "not started to submitted"],
+    ["Approved strategies", String(done), total ? `${Math.round(done / total * 100)}% (approved, implementing or ended)` : ""],
+    ["Not yet approved", String(c[0] + c[1] + c[2] + c[3]), "not started to submitted"],
   ];
   const kw = (CW - (kpis.length - 1) * 4) / kpis.length, kh = 18;
   kpis.forEach((k, i) => {
@@ -1900,7 +1995,7 @@ async function buildPDF() {
     doc.setDrawColor(236, 235, 231); doc.setLineWidth(0.2); doc.line(cx, yy, cx + cw, yy);
     doc.setTextColor(...mut); doc.text(String(v), cx - 2, yy + 1, { align: "right" });
   }
-  const bw = cw / 6, barW = Math.min(11, bw - 4);
+  const bw = cw / STATUSES.length, barW = Math.min(10, bw - 4);
   STATUSES.forEach((st, i) => {
     const h = (c[i] / top) * ch, x = cx + i * bw + (bw - barW) / 2;
     if (h > 0) { doc.setFillColor(...hexRGB(S_HEX[i])); doc.roundedRect(x, base - h, barW, h, 0.8, 0.8, "F"); doc.rect(x, base - Math.min(h, 1), barW, Math.min(h, 1), "F"); }
@@ -1992,6 +2087,7 @@ async function buildPDF() {
   return doc.output("blob");
 }
 
+const appsText = a => (a || []).map(x => `${x.body || "Approval"}: ${x.date ? fmtDate(x.date) : "not yet approved"}`).join("; ");
 async function buildXLSX(downloader = "") {
   await loadScript("vendor/exceljs.min.js");
   const wb = new ExcelJS.Workbook();
@@ -2012,8 +2108,8 @@ async function buildXLSX(downloader = "") {
   for (let r = 1; r <= 7; r++) ds.getRow(r).height = 17;
   ds.getCell("A9").value = "Community Development Strategies"; ds.getCell("A9").font = { bold: true, size: 16 };
   ds.getCell("A10").value = `Status as of ${fmtDate(todayISO())}`; ds.getCell("A10").font = { color: { argb: "FF7A7974" } };
-  const done = c[4] + c[5];
-  const kp = [["Territories", total], ["Approved or implementing", done], ["Share approved or implementing", total ? done / total : 0], ["Still in drafting stages", c[0] + c[1] + c[2] + c[3]]];
+  const done = c[4] + c[5] + c[6];
+  const kp = [["Territories", total], ["Approved strategies (approved, implementing or ended)", done], ["Share approved", total ? done / total : 0], ["Not yet approved", c[0] + c[1] + c[2] + c[3]]];
   kp.forEach((k, i) => { const r = ds.getRow(12 + i); r.getCell(1).value = k[0]; r.getCell(2).value = k[1]; r.getCell(2).font = { bold: true }; if (i === 2) r.getCell(2).numFmt = "0%"; });
   const hr = ds.getRow(17); hr.values = ["Status", "Count"]; headStyle(hr);
   STATUSES.forEach((st, i) => {
@@ -2021,20 +2117,20 @@ async function buildXLSX(downloader = "") {
     r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } };
     r.getCell(1).font = { color: { argb: argb(S_INK[i]) } };
   });
-  const tr = ds.getRow(24); tr.values = ["Total", { formula: "SUM(B18:B23)", result: total }]; tr.font = { bold: true };
+  const tr = ds.getRow(18 + STATUSES.length); tr.values = ["Total", { formula: `SUM(B18:B${17 + STATUSES.length})`, result: total }]; tr.font = { bold: true };
 
   // Territories sheet
   const ts = wb.addWorksheet("Territories", { views: [{ state: "frozen", ySplit: 1 }] });
   ts.columns = [
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
-    { header: "Target", key: "target", width: 11 }, { header: "Territorial / regional approval date", key: "appr", width: 18 }, { header: "Status", key: "status", width: 46 },
-    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 },
+    { header: "Target", key: "target", width: 11 }, { header: "Approving bodies and approval dates", key: "apps", width: 44 }, { header: "Latest approval date", key: "appr", width: 16 }, { header: "Status", key: "status", width: 24 },
+    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 }, { header: "Previous strategy cycles", key: "past", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), appr: toDate(t.approvalDate), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), apps: appsText(t.approvals), appr: toDate(t.approvalDate), past: (t.pastCycles || []).map(c => `${c.period || "No period"}${(c.approvals || []).length ? ` (${appsText(c.approvals)})` : ""}`).join("; "), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
     r.getCell("last").numFmt = "dd mmm yyyy"; r.getCell("appr").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
@@ -2054,7 +2150,7 @@ async function buildXLSX(downloader = "") {
     for (let k = 2; k <= 7; k++) r.getCell(k).alignment = { horizontal: "center" };
   });
   const last = cl.length + 1;
-  const tot = cs.addRow({ cwg: "All CWGs", ...Object.fromEntries(STATUSES.map((st, i) => ["s" + i, { formula: `SUM(${String.fromCharCode(66 + i)}2:${String.fromCharCode(66 + i)}${last})`, result: c[i] }])), total: { formula: `SUM(H2:H${last})`, result: total } });
+  const tot = cs.addRow({ cwg: "All CWGs", ...Object.fromEntries(STATUSES.map((st, i) => ["s" + i, { formula: `SUM(${String.fromCharCode(66 + i)}2:${String.fromCharCode(66 + i)}${last})`, result: c[i] }])), total: { formula: `SUM(${String.fromCharCode(66 + STATUSES.length)}2:${String.fromCharCode(66 + STATUSES.length)}${last})`, result: total } });
   tot.font = { bold: true }; for (let k = 2; k <= 7; k++) tot.getCell(k).alignment = { horizontal: "center" };
 
   // Log sheet
