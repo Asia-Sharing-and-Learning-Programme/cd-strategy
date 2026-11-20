@@ -2079,24 +2079,31 @@ const signedInAs = email => !!viewer.email && normEmail(viewer.email) === normEm
 // Shared hourly limit for sign-in emails (counted on the server, across the CD Strategies site and the ASLP Calendar)
 let signinState = null, signinTimer = null;
 const hhmm = iso => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
+let signinLimitN = 2;
 function limitBox(st) {
-  if (!st) return `<div class="lb-note">Checking the sign-in limit…</div>`;
+  if (!st) return `<div class="limitbox"><div class="lb-top"><strong>Sign-in emails</strong></div><p>Each person can request up to <strong>${signinLimitN}</strong> sign-in emails per hour. Your count appears when you enter your email.</p>
+    <p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
   const used = st.used || 0, lim = st.limit || 2, left = Math.max(0, lim - used);
-  return `<div class="limitbox${left ? "" : " full"}"><div class="lb-top"><strong>Sign-in emails this hour</strong><span class="lb-count">${used} of ${lim} used</span></div>
+  signinLimitN = lim;
+  return `<div class="limitbox${left ? "" : " full"}"><div class="lb-top"><strong>Your sign-in emails this hour</strong><span class="lb-count">${used} of ${lim} used</span></div>
     <div class="lb-bar"><i style="width:${Math.min(100, Math.round(used / lim * 100))}%"></i></div>
-    <p>${left ? `${left} sign-in email${left === 1 ? "" : "s"} left this hour, shared by everyone signing in to the ASLP websites.` : `The limit is reached. The next sign-in email can be sent at about <strong>${esc(hhmm(st.next_free_at))}</strong>.`}</p>
+    <p>${left ? `You can request ${left} more sign-in email${left === 1 ? "" : "s"} this hour.` : `You've reached your limit. You can request another sign-in email at about <strong>${esc(hhmm(st.next_free_at))}</strong>.`}</p>
     <p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
 }
 async function refreshSigninLimit() {
-  try { signinState = await rpc("cal_signin_status"); } catch (e) { signinState = null; $("adlg-limit").innerHTML = ""; return; }
-  renderSigninLimit();
+  const email = normEmail($("a-email").value);
+  if (!validEmail(email)) { signinState = null; renderSigninLimit(); return; }
+  try { signinState = await rpc("signin_status_for", { p_email: email }); } catch (e) { signinState = null; }
+  if (normEmail($("a-email").value) === email) renderSigninLimit();
 }
+let signinCheckT = null;
+$("a-email").addEventListener("input", () => { clearTimeout(signinCheckT); $("adlg-err").textContent = ""; signinCheckT = setTimeout(refreshSigninLimit, 450); });
 function renderSigninLimit() {
   $("adlg-limit").innerHTML = limitBox(signinState);
   if (viewer.email) return;
   const full = signinState && signinState.used >= signinState.limit;
   $("adlg-go").disabled = !!full;
-  $("adlg-go").textContent = full ? "Sign-in limit reached" : "Email me a sign-in link";
+  $("adlg-go").textContent = full ? "Your sign-in limit is reached" : "Email me a sign-in link";
   clearTimeout(signinTimer);
   if (full && signinState.next_free_at) signinTimer = setTimeout(refreshSigninLimit, Math.max(15000, new Date(signinState.next_free_at) - Date.now() + 2000));
 }
