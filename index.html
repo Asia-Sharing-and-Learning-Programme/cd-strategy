@@ -81,6 +81,17 @@
            border: 1px solid var(--border); font-size: 12px; white-space: nowrap; color: var(--text-primary); }
   .muted { color: var(--text-muted); }
   .chart { position: relative; }
+  :root { --tl-start: #005fc0; --tl-end: #e04c1e; }
+  :root[data-theme="dark"] { --tl-start: #3d86dc; --tl-end: #e8602c; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --tl-start: #3d86dc; --tl-end: #e8602c; } }
+  .tl-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+  .tl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .tl-table th, .tl-table td { text-align: center; font-variant-numeric: tabular-nums; padding: 5px 6px; font-size: 12px; }
+  .tl-table th:first-child, .tl-table td:first-child { text-align: left; white-space: nowrap; }
+  .tl-table td.z { color: var(--text-muted); }
+  .tl-table tr.tl-active td { font-weight: 600; }
+  #tl-chart .yr { cursor: default; }
+  #tl-chart .yr:hover .hit { fill: var(--grid); opacity: .5; }
   .chart svg { display: block; width: 100%; height: auto; }
   .chart text { fill: var(--text-secondary); font-size: 11px; }
   .chart .val { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
@@ -417,6 +428,15 @@
     <h2>Status by CWG</h2>
     <div class="tblwrap"><table aria-label="Territories per status in each CWG"><thead id="cwgm-head"></thead><tbody id="cwgm-body"></tbody><tfoot id="cwgm-foot"></tfoot></table></div>
     <div class="muted" style="font-size:12px;margin-top:10px">Click a zone or CWG to see its dashboard.</div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px" id="tl-card">
+    <div class="toolbar" style="margin-bottom:2px"><h2 style="margin:0" id="tl-title">Strategy implementation by year</h2><span class="spacer"></span>
+      <div class="tl-legend"><span><i style="background:var(--tl-start)"></i>Starting implementation</span><span><i style="background:var(--tl-end)"></i>Ending</span></div></div>
+    <div class="muted" style="font-size:12px;margin-bottom:6px">Based on each territory's strategy period (from–to year) in its CD Strategy details. A strategy is counted as starting in its "from" year and ending in its "to" year.</div>
+    <div class="chart" id="tl-chart"></div>
+    <div class="tblwrap" style="margin-top:8px"><table class="tl-table" aria-label="Strategies starting, ending and in implementation per year"><thead id="tl-head"></thead><tbody id="tl-body"></tbody></table></div>
+    <div class="muted" id="tl-note" style="font-size:12px;margin-top:8px"></div>
   </section>
 
   <section class="card" style="margin-bottom:16px">
@@ -837,7 +857,7 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTimeline(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
 function renderHelp() {
   const named = cwgLeadInfo.filter(l => l.name && cwgParts(l.cwg)).sort((a, b) => String(a.cwg).localeCompare(String(b.cwg)));
   $("help-leads").innerHTML = named.map(l => { const p = cwgParts(l.cwg); return `<span class="hl" style="${cwgVars(l.cwg)}"><span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>${esc(l.name)}</span>`; }).join("");
@@ -926,6 +946,71 @@ function renderChart() {
     b.addEventListener("click", () => toggleFilter(b.dataset.k));
     b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleFilter(b.dataset.k); } });
   });
+}
+
+// Strategy implementation timeline: strategies starting / ending per year, for the next 10 years (follows the zone/CWG filter)
+function strategyYears(t) {
+  const m = String(t.strategyPeriod || "").match(/(\d{4})\D+(\d{4})/);
+  if (m) { const a = +m[1], b = +m[2]; return a <= b ? [a, b] : [b, a]; }
+  const one = String(t.strategyPeriod || "").match(/^\s*(\d{4})\s*$/);
+  return one ? [+one[1], +one[1]] : null;
+}
+function renderTimeline() {
+  const Y0 = new Date().getFullYear(), years = Array.from({ length: 10 }, (_, k) => Y0 + k);
+  const list = viewTerr(), withP = list.map(t => ({ t, p: strategyYears(t) })).filter(x => x.p);
+  const starts = years.map(y => withP.filter(x => x.p[0] === y)), ends = years.map(y => withP.filter(x => x.p[1] === y));
+  const active = years.map(y => withP.filter(x => x.p[0] <= y && y <= x.p[1]).length);
+  $("tl-title").textContent = `Strategy implementation by year, ${years[0]}–${years[years.length - 1]}`;
+  const W = 1000, H = 300, m = { t: 22, r: 8, b: 28, l: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = Math.max(3, ...starts.map(a => a.length), ...ends.map(a => a.length));
+  const step = max <= 10 ? 1 : max <= 20 ? 2 : 5, top = Math.ceil(max / step) * step;
+  const yv = v => m.t + ih - (v / top) * ih;
+  const bw = iw / years.length, barW = Math.min(30, (bw - 20) / 2);
+  const bar = (x, v, color) => {
+    if (!v) return "";
+    const h = (v / top) * ih, y = m.t + ih - h, r = Math.min(3, h);
+    return `<path class="mark" d="M${x},${m.t + ih} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + barW - r},${y} Q${x + barW},${y} ${x + barW},${y + r} L${x + barW},${m.t + ih} Z" fill="${color}"/>
+      <text class="val" x="${x + barW / 2}" y="${y - 5}" text-anchor="middle">${v}</text>`;
+  };
+  let g = "";
+  for (let v = 0; v <= top; v += step) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${yv(v)}" y2="${yv(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${m.l - 8}" y="${yv(v) + 4}" text-anchor="end">${v}</text>`;
+  let cols = "";
+  years.forEach((y, k) => {
+    const x0 = m.l + k * bw, xs = x0 + bw / 2 - barW - 1, xe = x0 + bw / 2 + 1;
+    cols += `<g class="yr" data-k="${k}" tabindex="0" aria-label="${y}: ${starts[k].length} starting, ${ends[k].length} ending">
+      <rect class="hit" x="${x0}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>
+      ${bar(xs, starts[k].length, "var(--tl-start)")}${bar(xe, ends[k].length, "var(--tl-end)")}
+      <text x="${x0 + bw / 2}" y="${m.t + ih + 17}" text-anchor="middle">${y}</text></g>`;
+  });
+  const el = $("tl-chart");
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Strategies starting and ending implementation per year">${g}
+    <line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}" stroke="var(--text-muted)" stroke-width="1"/>${cols}</svg><div class="tip" id="tl-tip"></div>`;
+  const tip = $("tl-tip");
+  const names = a => a.map(x => esc(x.t.name.replace(/\s+(Territory|Region)$/i, ""))).sort().join("<br>");
+  el.querySelectorAll(".yr").forEach(gEl => {
+    const k = +gEl.dataset.k;
+    const show = e => {
+      tip.innerHTML = `<div style="font-weight:600;margin-bottom:4px">${years[k]}</div>
+        <div><span class="sw" style="background:var(--tl-start)"></span><strong>${starts[k].length}</strong> starting implementation</div>${starts[k].length ? `<div class="muted" style="margin:2px 0 4px 16px">${names(starts[k])}</div>` : ""}
+        <div><span class="sw" style="background:var(--tl-end)"></span><strong>${ends[k].length}</strong> ending</div>${ends[k].length ? `<div class="muted" style="margin:2px 0 4px 16px">${names(ends[k])}</div>` : ""}
+        <div style="margin-top:4px"><strong>${active[k]}</strong> in implementation that year</div>`;
+      const r = el.getBoundingClientRect(), cx = e && e.clientX ? e.clientX - r.left : (k + 0.5) * r.width / years.length, cy = e && e.clientY ? e.clientY - r.top : 20;
+      let left = cx + 14; if (left + 260 > r.width) left = cx - 274;
+      tip.style.left = Math.max(0, left) + "px"; tip.style.top = cy + 10 + "px"; tip.style.opacity = 1;
+    };
+    gEl.addEventListener("mousemove", show); gEl.addEventListener("focus", () => show(null));
+    gEl.addEventListener("mouseleave", () => { tip.style.opacity = 0; }); gEl.addEventListener("blur", () => { tip.style.opacity = 0; });
+  });
+  // table view
+  $("tl-head").innerHTML = `<tr><th>Year</th>${years.map(y => `<th>${y}</th>`).join("")}</tr>`;
+  const row = (label, arr, cls) => `<tr class="${cls || ""}"><td>${label}</td>${arr.map(v => `<td class="${v ? "" : "z"}">${v}</td>`).join("")}</tr>`;
+  $("tl-body").innerHTML = row(`<span class="sw" style="background:var(--tl-start)"></span>Starting`, starts.map(a => a.length))
+    + row(`<span class="sw" style="background:var(--tl-end)"></span>Ending`, ends.map(a => a.length))
+    + row("In implementation", active, "tl-active");
+  const missing = list.length - withP.length;
+  $("tl-note").innerHTML = missing
+    ? `${withP.length} of ${list.length} territories have a strategy period. <strong>${missing}</strong> ${missing === 1 ? "doesn't" : "don't"} have one yet and ${missing === 1 ? "isn't" : "aren't"} counted. Focal persons, CWG leads and admins can add it in the CD Strategy details.`
+    : `All ${list.length} territories have a strategy period.`;
 }
 
 function toggleFilter(k) { statusFilter = statusFilter === k ? null : k; renderSummary(); renderChart(); renderTable(); }
