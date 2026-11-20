@@ -2049,17 +2049,36 @@ async function buildPDF() {
   const c = counts(), total = viewTerr().length, done = c[4] + c[5] + c[6];
   const kpis = [
     ["Territories", String(total), "being tracked"],
-    ["Approved strategies", String(done), total ? `${Math.round(done / total * 100)}% (approved, implementing or ended)` : ""],
+    ["Approved strategies", String(done), total ? `${Math.round(done / total * 100)}% of territories` : ""],
     ["Not yet approved", String(c[0] + c[1] + c[2] + c[3]), "not started to submitted"],
   ];
-  const kw = (CW - (kpis.length - 1) * 4) / kpis.length, kh = 18;
+  // KPI boxes (left) + consultation / workshop box (right), all for the territories in this summary
+  const consW = 78, kh = 19, kw = (CW - consW - kpis.length * 4) / kpis.length;
   kpis.forEach((k, i) => {
     const x = M + i * (kw + 4);
     doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(x, y, kw, kh, 2, 2, "S");
-    doc.setFontSize(7); doc.setTextColor(...sub); doc.text(pdfSafe(k[0]), x + 3, y + 5);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(i === 3 ? 11 : 15); doc.setTextColor(...ink); doc.text(pdfSafe(k[1]), x + 3, y + 12);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut); doc.text(pdfSafe(doc.splitTextToSize(k[2], kw - 6)[0] || ""), x + 3, y + 16);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...sub); doc.text(pdfSafe(k[0]), x + 3, y + 5);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(...ink); doc.text(pdfSafe(k[1]), x + 3, y + 12.5);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.3); doc.setTextColor(...mut); doc.text(pdfSafe(doc.splitTextToSize(k[2], kw - 5)[0] || ""), x + 3, y + 16.5);
   });
+  {
+    const x = M + CW - consW, list = viewTerr(), n = list.length;
+    const segs = [["before", "Before drafting", "#005fc0"], ["during", "During drafting", "#f5c400"], ["none", "Not held", "#e04c1e"], ["unk", "Not recorded", "#d9d8d3"]]
+      .map(([k, l, col]) => [l, col, list.filter(t => consKey(t) === k).length]);
+    const held = segs[0][2] + segs[1][2];
+    doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(x, y, consW, kh, 2, 2, "S");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...sub); doc.text("Consultation or workshop held", x + 3, y + 5);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...ink); doc.text(`${held} of ${n}`, x + consW - 3, y + 5, { align: "right" });
+    const bx = x + 3, bwid = consW - 6, by = y + 7, bh = 3.4; let cx2 = bx;
+    if (n) segs.forEach(([, col, v]) => { if (!v) return; const w = v / n * bwid; doc.setFillColor(...hexRGB(col)); doc.rect(cx2, by, Math.max(0.4, w - 0.4), bh, "F"); cx2 += w; });
+    doc.setFontSize(5.8);
+    segs.forEach(([l, col, v], i) => {
+      const lx = x + 3 + (i % 2) * (consW - 6) / 2, ly = y + 13.4 + Math.floor(i / 2) * 3.3;
+      doc.setFillColor(...hexRGB(col)); doc.rect(lx, ly - 1.9, 2.1, 2.1, "F");
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...sub); doc.text(l, lx + 3, ly);
+      doc.setFont("helvetica", "bold"); doc.setTextColor(...ink); doc.text(String(v), lx + 3 + doc.getTextWidth(l + " ") + 0.5, ly);
+    });
+  }
   y += kh + 7;
 
   // Chart (left) + status table (right)
