@@ -240,8 +240,19 @@
   .foot-sync { color: var(--text-muted); font-size: 11px; }
   .hdr-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
   .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; padding-left: 18px; padding-right: 18px; }
-  .aslp-btn-yellow { background: #f5c400; border: 1px solid #f5c400; color: #1a1a19; font-weight: 700; padding-left: 14px; padding-right: 14px; }
-  .aslp-btn-yellow:hover { background: #e0b300; border-color: #e0b300; }
+  /* Sign in: ASLP logo colours (navy with the logo's yellow underline) */
+  .aslp-btn-yellow { background: #24215f; border: 1px solid #24215f; color: #fff; font-weight: 700; padding-left: 14px; padding-right: 14px; box-shadow: inset 0 -3px 0 #f5c400; }
+  .aslp-btn-yellow:hover { background: #005fc0; border-color: #005fc0; }
+  :root[data-theme="dark"] .aslp-btn-yellow { border-color: #4a46a0; }
+  .limitbox { border: 1px solid var(--border); border-left: 4px solid #005fc0; border-radius: 8px; padding: 9px 11px; margin: 10px 0 4px; font-size: 12.5px; background: var(--surface-0); }
+  .limitbox.full { border-left-color: #e04c1e; }
+  .limitbox p { margin: 6px 0 0; }
+  .lb-top { display: flex; justify-content: space-between; gap: 8px; }
+  .lb-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lb-bar { height: 6px; background: var(--grid); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .lb-bar i { display: block; height: 100%; background: #005fc0; }
+  .limitbox.full .lb-bar i { background: #e04c1e; }
+  .lb-note { color: var(--text-muted); font-size: 11.5px; }
   .aslp-btn:hover { background: #c0391e; border-color: #c0391e; }
   .dl-group { align-items: center; }
   .map { height: 480px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-0); z-index: 0; }
@@ -352,14 +363,14 @@
     </div>
     <div class="hdr-actions">
       <div class="dl-group">
-        <button id="dl-pdf" class="small primary" title="One-page PDF: all territories, one zone or one CWG">⬇ One-page summary (PDF)</button>
-        <button id="dl-xlsx" class="small">⬇ Excel</button>
+        <button id="dl-pdf" class="small primary" title="One-page PDF: all territories, one zone or one CWG">One-page summary (PDF)</button>
+        <button id="dl-xlsx" class="small">Excel</button>
       </div>
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
       <div class="hdr-right">
-        <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in as an Admin or a CD Focal Person">Sign in</button>
+        <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (Admins, CWG leads and CD focal persons)">Sign in</button>
         <button id="upd-btn" class="small aslp-btn">Update</button>
       </div>
     </div>
@@ -442,7 +453,7 @@
         <div class="country-chips" id="td-countries"></div>
       </section>
       <section class="card">
-        <div class="toolbar"><h2 style="margin:0">Update history</h2><span class="spacer"></span><span class="db-count" id="td-count"></span><button class="small" id="td-xlsx" hidden title="Read-only Excel of this territory's update history">⬇ Excel</button></div>
+        <div class="toolbar"><h2 style="margin:0">Update history</h2><span class="spacer"></span><span class="db-count" id="td-count"></span><button class="small" id="td-xlsx" hidden title="Read-only Excel of this territory's update history">Excel</button></div>
         <div id="log-list"><div class="muted">Loading…</div></div>
       </section>
     </div>
@@ -615,20 +626,14 @@
     <div class="dlg-body">
       <h3 id="adlg-title">Sign in</h3>
       <div id="adlg-in">
-        <div class="field" style="margin-top:8px"><label>I am signing in as</label>
-          <div class="role-pick" role="radiogroup" aria-label="Sign in as">
-            <label class="role-opt"><input type="radio" name="a-role" value="admin"><span><strong>Admin</strong><small>Programme coordinators and CWG leads</small></span></label>
-            <label class="role-opt"><input type="radio" name="a-role" value="focal"><span><strong>CD Focal Person</strong><small>A territory's registered focal person</small></span></label>
-          </div>
-        </div>
-        <div class="muted help" id="a-role-help" style="margin-top:6px"></div>
+        <div class="muted help" style="margin-top:6px"><p>Enter the email the ASLP team registered for you. We'll email you a sign-in link.</p><p>What you can see and change depends on the access the admins gave you (Admin, CWG lead or CD focal person).</p><p>Backup persons don't need to sign in. They update the status with the <strong>Update</strong> button.</p></div>
         <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
-        <div class="signin-warn" id="adlg-limit"></div>
+        <div id="adlg-limit"></div>
       </div>
       <div id="adlg-sent" class="ok-note" hidden></div>
       <div id="adlg-out" hidden></div>
       <div class="err" id="adlg-err"></div>
-      <div class="dlg-help" id="adlg-help">Having trouble signing in? Contact your CWG lead for support.</div>
+      <div class="dlg-help help" id="adlg-help"><p><strong>Having trouble signing in?</strong></p><ul><li>Admins and CWG leads: contact the SWI-SAID Asia Programme Manager.</li><li>CD focal persons: contact your CWG lead.</li></ul></div>
     </div>
     <div class="dlg-actions">
       <button type="button" id="adlg-cancel">Close</button>
@@ -1924,7 +1929,7 @@ $("xdlg-form").addEventListener("submit", async e => {
     try { sessionStorage.setItem("cd-email", email); } catch (e2) {}
     const blob = await buildXLSX(email);
     $("xdlg").close();
-    await saveFile(`Community_Development_Strategies_${fileStamp()}.xlsx`, blob, $("dl-xlsx"), "⬇ Excel");
+    await saveFile(`Community_Development_Strategies_${fileStamp()}.xlsx`, blob, $("dl-xlsx"), "Excel");
   } catch (err) {
     go.disabled = false; go.textContent = "Download Excel";
     $("xdlg-err").textContent = (err && err.message) || "Couldn't prepare the Excel file. Please try again.";
@@ -1966,8 +1971,8 @@ async function load() {
 }
 function renderAuth() {
   const b = $("auth-btn");
-  b.textContent = viewer.email ? (isEditor ? "Signed in · Admin" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
-  b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in as an Admin or a CD Focal Person";
+  b.textContent = viewer.email ? (isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
+  b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in (Admins, CWG leads and CD focal persons)";
   $("tab-admin").hidden = !isEditor;
 }
 $("auth-btn").addEventListener("click", () => {
@@ -1976,87 +1981,74 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-out").hidden = !signedIn;
   const focalNames = (viewer.focal_of || []).map(id => (territories.find(x => x.id === id) || { name: id }).name);
   $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>.</div><ul style="margin:8px 0 0 18px;padding:0;font-size:13px;line-height:1.6">`
-    + (isEditor ? `<li><strong>Admin</strong> (${esc(viewer.role || "admin")})${isFullAdmin ? " — full access to all territories" : ` — for ${esc((viewer.lead_cwgs || []).join(" and "))} territories only`}. Open the <a href="#admin" id="go-admin">Admin</a> tab.</li>` : "")
+    + (isEditor ? `<li><strong>${isFullAdmin ? "Admin" : "CWG lead"}</strong> (${esc(viewer.role || "admin")})${isFullAdmin ? " — full access to all territories" : ` — for ${esc((viewer.lead_cwgs || []).join(" and "))} territories only`}. Open the <a href="#admin" id="go-admin">Admin</a> tab.</li>` : "")
     + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
-    + (!isEditor && !focalNames.length ? `<li>This email isn't registered as an Admin or a CD Focal Person. Ask a programme coordinator to register it.</li>` : "")
+    + (!isEditor && !focalNames.length ? `<li>This email has no access on this site yet. Please contact the SWI-SAID Asia Programme Manager.</li>` : "")
     + `</ul>` : "";
   $("adlg-title").textContent = signedIn ? "Signed in" : "Sign in";
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
-  if (!signedIn) {
-    let r = ""; try { r = localStorage.getItem("cd-signin-role") || ""; } catch (e) {}
-    document.querySelectorAll('input[name="a-role"]').forEach(x => { x.checked = x.value === r; });
-    renderRoleHelp(); renderSigninLimit();
-  }
+  $("adlg-go").hidden = false;
+  if (!signedIn) { signinState = null; renderSigninLimit(); refreshSigninLimit(); }
   $("adlg").showModal();
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
 $("adlg-cancel").addEventListener("click", () => $("adlg").close());
 // Sign-in link limits (Supabase email sending). Update SIGNIN_PER_HOUR if the email provider changes.
-const SIGNIN_PER_HOUR = 2, SIGNIN_COOLDOWN_S = 60;
 const isFocalViewer = () => !!(viewer.email && (viewer.focal_of || []).length);
 const signedInAs = email => !!viewer.email && normEmail(viewer.email) === normEmail(email);
-function selectedRole() { const r = document.querySelector('input[name="a-role"]:checked'); return r ? r.value : ""; }
-function renderRoleHelp() {
-  const r = selectedRole();
-  $("a-role-help").innerHTML = r === "admin"
-    ? "<p>For programme coordinators, other admins and CWG leads.</p><p>Admins can see contact details, edit or delete history entries, and manage who can sign in (Admin tab).</p>"
-    : r === "focal"
-    ? "<p>For each territory's registered CD focal person.</p><p>Once signed in, you can update your territory's status <em>and</em> CD Strategy details, and see its contact details.</p><p>Backup persons don't need to sign in. They update the status with the Update button.</p>"
-    : "Choose how you are signing in.";
-  $("adlg-help").innerHTML = r === "admin"
-    ? "Having trouble signing in as an Admin? Contact the <strong>SWI-SAID Asia Programme Manager</strong>."
-    : "Having trouble signing in? Contact your <strong>CWG lead</strong> for support.";
-  $("a-email").placeholder = r === "focal" ? "your registered focal person email" : "name@salvationarmy.org";
+// Shared hourly limit for sign-in emails (counted on the server, across the CD Strategies site and the ASLP Calendar)
+let signinState = null, signinTimer = null;
+const hhmm = iso => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
+function limitBox(st) {
+  if (!st) return `<div class="lb-note">Checking the sign-in limit…</div>`;
+  const used = st.used || 0, lim = st.limit || 2, left = Math.max(0, lim - used);
+  return `<div class="limitbox${left ? "" : " full"}"><div class="lb-top"><strong>Sign-in emails this hour</strong><span class="lb-count">${used} of ${lim} used</span></div>
+    <div class="lb-bar"><i style="width:${Math.min(100, Math.round(used / lim * 100))}%"></i></div>
+    <p>${left ? `${left} sign-in email${left === 1 ? "" : "s"} left this hour, shared by everyone signing in to the ASLP websites.` : `The limit is reached. The next sign-in email can be sent at about <strong>${esc(hhmm(st.next_free_at))}</strong>.`}</p>
+    <p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
 }
-document.querySelectorAll('input[name="a-role"]').forEach(x => x.addEventListener("change", () => { try { localStorage.setItem("cd-signin-role", x.value); } catch (e) {} $("adlg-err").textContent = ""; renderRoleHelp(); }));
-function signinTimes() {
-  try { return (JSON.parse(localStorage.getItem("cd-signin-times") || "[]") || []).filter(x => Date.now() - x < 3600_000); } catch (e) { return []; }
+async function refreshSigninLimit() {
+  try { signinState = await rpc("cal_signin_status"); } catch (e) { signinState = null; $("adlg-limit").innerHTML = ""; return; }
+  renderSigninLimit();
 }
-function noteSignin() { try { localStorage.setItem("cd-signin-times", JSON.stringify([...signinTimes(), Date.now()])); } catch (e) {} }
-let signinTimer = null;
 function renderSigninLimit() {
-  const times = signinTimes(), used = times.length, left = Math.max(0, SIGNIN_PER_HOUR - used);
-  const last = times.length ? Math.max(...times) : 0, wait = Math.ceil((last + SIGNIN_COOLDOWN_S * 1000 - Date.now()) / 1000);
-  let html = `<p><strong>Limit: ${SIGNIN_PER_HOUR} sign-in emails per hour</strong> for the whole site, shared by everyone signing in.</p><p>Each link works once and expires after 1 hour. Check your spam folder before asking for another.</p>`;
-  if (used) html += `<p>From this browser: <strong>${used} of ${SIGNIN_PER_HOUR}</strong> used in the last hour${left ? ` — ${left} left` : ` — please wait until ${new Date(Math.min(...times) + 3600_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}.</p>`;
-  $("adlg-limit").innerHTML = html;
+  $("adlg-limit").innerHTML = limitBox(signinState);
+  if (viewer.email) return;
+  const full = signinState && signinState.used >= signinState.limit;
+  $("adlg-go").disabled = !!full;
+  $("adlg-go").textContent = full ? "Sign-in limit reached" : "Email me a sign-in link";
   clearTimeout(signinTimer);
-  if (!viewer.email && wait > 0) {
-    $("adlg-go").disabled = true; $("adlg-go").textContent = `Wait ${wait}s to send another link`;
-    signinTimer = setTimeout(renderSigninLimit, 1000);
-  } else if (!viewer.email) { $("adlg-go").disabled = false; $("adlg-go").textContent = used ? "Send another sign-in link" : "Email me a sign-in link"; }
+  if (full && signinState.next_free_at) signinTimer = setTimeout(refreshSigninLimit, Math.max(15000, new Date(signinState.next_free_at) - Date.now() + 2000));
 }
+function renderRoleHelp() {}   // kept for older calls: access is set by admins, not chosen at sign-in
 $("adlg-form").addEventListener("submit", async e => {
   e.preventDefault();
   if (viewer.email) { await db.auth.signOut(); $("adlg").close(); viewer = { email: "", is_coordinator: false }; await load(); toast("Signed out"); return; }
-  const email = $("a-email").value.trim();
-  const role = selectedRole();
-  if (!role) { $("adlg-err").textContent = "Please choose whether you are signing in as an Admin or a CD Focal Person."; return; }
+  const email = normEmail($("a-email").value);
   if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
-  $("adlg-go").disabled = true;
-  let ok = false;
-  try { ok = await rpc("check_signin", { p_email: email, p_role: role }); } catch (e2) { $("adlg-go").disabled = false; $("adlg-err").textContent = errMsg(e2); return; }
-  $("adlg-go").disabled = false;
-  if (!ok) {
-    $("adlg-err").textContent = role === "admin"
-      ? "This email isn't on the Admin list, so no sign-in email was sent. Please contact the SWI-SAID Asia Programme Manager."
-      : "This email isn't registered as a territory's CD focal person. No sign-in email was sent. Check the email, or ask your programme coordinator or CWG lead to register you in your territory's CD Strategy details.";
+  $("adlg-go").disabled = true; $("adlg-err").textContent = "";
+  let d;
+  try { d = await rpc("cds_request_signin", { p_email: email }); } catch (e2) { $("adlg-go").disabled = false; $("adlg-err").textContent = errMsg(e2); return; }
+  if (d && d.limit != null) { signinState = d; renderSigninLimit(); }
+  if (!d || !d.ok) {
+    $("adlg-go").disabled = !!(d && d.reason === "limit");
+    $("adlg-err").innerHTML = d && d.reason === "not_registered"
+      ? "<p>This email isn't registered on this site, so no sign-in email was sent.</p><p>Admins and CWG leads: contact the SWI-SAID Asia Programme Manager. CD focal persons: ask your CWG lead to register you.</p>"
+      : `The hourly sign-in limit is reached. Please try again at about ${esc(hhmm(d && d.next_free_at))}. The most recent link already in your inbox may still work.`;
     return;
   }
-  if (signinTimes().length >= SIGNIN_PER_HOUR && !confirm(`You've already requested ${SIGNIN_PER_HOUR} sign-in links in the last hour, so this one will probably be blocked. The latest link in your inbox may still work. Try anyway?`)) return;
-  $("adlg-go").disabled = true; $("adlg-err").textContent = "";
   const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
   if (error) {
     $("adlg-go").disabled = false;
     const m = String(error.message || "");
-    $("adlg-err").textContent = /rate limit/i.test(m) ? "Too many sign-in emails were sent in the last hour. Please wait about an hour and try again — the most recent link already in your inbox may still work."
-      : /not authorized|not allowed/i.test(m) ? "Sign-in emails can't be sent to this address yet. Ask the site admin to finish the email setup."
+    $("adlg-err").textContent = /rate limit/i.test(m) ? "Too many sign-in emails were sent in the last hour. Please wait and try again. The most recent link already in your inbox may still work."
+      : /not authorized|not allowed/i.test(m) ? "Sign-in emails can't be sent to this address yet. Please contact the SWI-SAID Asia Programme Manager."
       : (m || "Couldn't send the sign-in email.");
     return;
   }
-  noteSignin(); renderSigninLimit();
-  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${esc(email)}.</strong></p><p>Open the newest email (check spam too).</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>`;
+  $("adlg-in").hidden = true; $("adlg-go").hidden = true;
+  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${esc(email)}.</strong></p><p>Open the newest email (check spam too) on this device.</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>${limitBox(signinState)}`;
 });
 
 applyMode();
