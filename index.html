@@ -584,6 +584,11 @@
         <div class="muted help" style="margin-bottom:8px"><p>Everyone who downloads the Excel file enters their email first.</p><p>Each download is listed here and emailed to the ASLP team as a notification.</p></div>
         <div class="tblwrap"><table><thead><tr><th>Date</th><th>Email</th><th>View</th><th>Email sent</th></tr></thead><tbody id="dl-body"></tbody></table></div>
       </section>
+      <section class="card" id="bin-card" style="margin-top:16px" hidden>
+        <div class="toolbar"><h2 style="margin:0">Recycle bin</h2><span class="spacer"></span><span class="db-count" id="bin-count"></span></div>
+        <div class="muted help" style="margin-bottom:8px"><p>Deleted update-history entries, and the previous version of edited ones, are kept here. Click <strong>Restore</strong> to put one back.</p><p>All data is also backed up every night to a private GitHub repository and emailed weekly to the ASLP team.</p></div>
+        <div class="tblwrap"><table><thead><tr><th>When</th><th>What happened</th><th>Territory</th><th>Entry</th><th>By</th><th></th></tr></thead><tbody id="bin-body"></tbody></table></div>
+      </section>
   </div>
   <section class="help-box" id="help-box">
     <div class="help-q">Having trouble with the site?</div>
@@ -1975,11 +1980,11 @@ function openLogDelete(id) {
   const ti = sIndex(l.toStatus);
   $("ddlg-desc").innerHTML = `<strong>${esc(l.territoryName)}</strong> · ${esc(fmtDate(l.date))}<br>${ti >= 0 ? esc(STATUSES[ti].label) : ""}${l.note ? `<div class="muted" style="margin-top:4px">${esc(l.note)}</div>` : ""}`;
   const mine = logs.filter(x => x.territoryId === l.territoryId && x.type !== "details").sort(logSort);
-  let effect = l.type === "details" ? "This removes the record from the history only; the territory's current details stay as they are. This can't be undone." : "This can't be undone.";
+  let effect = l.type === "details" ? "This removes the record from the history only; the territory's current details stay as they are. It goes to the Recycle bin in the Admin tab, where it can be restored." : "It goes to the Recycle bin in the Admin tab, where it can be restored.";
   if (l.type !== "details" && mine[0] && mine[0].id === l.id) {
     const next = mine[1];
     const fi = sIndex(next ? next.toStatus : l.fromStatus);
-    effect = `This is the territory's latest entry, so its status will go back to "${fi >= 0 ? STATUSES[fi].label : "its previous status"}"${next ? ` (last updated ${fmtDate(next.date)})` : " with no last-updated date"}. This can't be undone.`;
+    effect = `This is the territory's latest entry, so its status will go back to "${fi >= 0 ? STATUSES[fi].label : "its previous status"}"${next ? ` (last updated ${fmtDate(next.date)})` : " with no last-updated date"}. It goes to the Recycle bin in the Admin tab, where it can be restored.`;
   }
   $("ddlg-effect").textContent = effect;
   $("ddlg-err").textContent = "";
@@ -2492,6 +2497,29 @@ function renderDownloads() {
   $("dl-body").innerHTML = downloadsLog.length ? downloadsLog.map(d => `<tr><td class="nowrap">${esc(fmtStamp(d.at))}</td><td>${esc(d.email)}</td><td>${esc(d.filter || "")}</td><td>${d.notified ? "Yes" : '<span class="muted">Not yet</span>'}</td></tr>`).join("")
     : `<tr><td colspan="4" class="muted">No Excel downloads yet.</td></tr>`;
 }
+let binLog = [];
+function binEntryText(e) {
+  if (!e) return "";
+  const si = sIndex(e.to_status), fi = sIndex(e.from_status);
+  if (e.type === "details") return `Details change${(e.changes || []).length ? ": " + e.changes.map(c => c.label).join(", ") : ""}`;
+  return `${fi >= 0 ? STATUSES[fi].label + " → " : ""}${si >= 0 ? STATUSES[si].label : "Status"}${e.update_date ? ` (${fmtDate(e.update_date)})` : ""}${e.note ? `: ${String(e.note).slice(0, 80)}` : ""}`;
+}
+function renderBin() {
+  const card = $("bin-card"); card.hidden = !isEditor;
+  if (!isEditor) return;
+  const open = binLog.filter(b => !b.restoredAt).length;
+  $("bin-count").textContent = binLog.length ? `${open} to restore` : "";
+  $("bin-body").innerHTML = binLog.length ? binLog.map(b => `<tr><td class="nowrap">${esc(fmtStamp(b.at))}</td>
+      <td>${b.action === "deleted" ? "Deleted" : "Edited (previous version)"}</td><td>${esc(b.territoryName || b.territoryId || "")}</td>
+      <td>${esc(binEntryText(b.entry))}</td><td>${esc(b.by || "")}</td>
+      <td style="text-align:right">${b.restoredAt ? `<span class="muted">Restored ${esc(fmtStamp(b.restoredAt))}</span>` : `<button class="small" data-restore="${esc(b.id)}">Restore</button>`}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="muted">Nothing here. Deleted or edited history entries will appear here.</td></tr>`;
+  $("bin-body").querySelectorAll("[data-restore]").forEach(btn => btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try { await rpc("admin_restore_log", { p_bin: btn.dataset.restore }); toast("Restored"); await load(); }
+    catch (e) { btn.disabled = false; toast(errMsg(e)); }
+  }));
+}
 async function load() {
   try {
     const d = await rpc("get_dashboard");
@@ -2507,8 +2535,9 @@ async function load() {
     if (isEditor) {
       try { const a = await rpc("admin_get_access"); accessCfg = { scope: a.scope || "all", leadCwgs: a.leadCwgs || [], coordinators: a.coordinators || [], cwgLeads: a.cwgLeads || {}, otherAdmins: a.otherAdmins || [], contacts: a.contacts || [] }; } catch (e) {}
       if (isFullAdmin) { try { downloadsLog = await rpc("admin_get_downloads", { p_limit: 200 }) || []; } catch (e) { downloadsLog = []; } } else downloadsLog = [];
-    }
-    renderDownloads();
+      try { binLog = await rpc("admin_get_bin") || []; } catch (e) { binLog = []; }
+    } else binLog = [];
+    renderDownloads(); renderBin();
     applyMode(); renderAuth();
     $("foot-sync").textContent = "Data refreshed " + new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   } catch (e) {
