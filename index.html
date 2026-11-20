@@ -249,6 +249,11 @@
   .limitbox p { margin: 6px 0 0; }
   .lb-top { display: flex; justify-content: space-between; gap: 8px; }
   .lb-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lb-segs { display: flex; gap: 4px; margin-top: 7px; }
+  .lb-segs span { flex: 1; height: 9px; border-radius: 3px; background: var(--grid); }
+  .lb-segs span.on { background: #005fc0; }
+  .lb-segs span.unk { background: color-mix(in srgb, #005fc0 22%, transparent); }
+  .limitbox.full .lb-segs span { background: color-mix(in srgb, #e04c1e 25%, var(--grid)); }
   .lb-bar { height: 6px; background: var(--grid); border-radius: 4px; margin-top: 6px; overflow: hidden; }
   .lb-bar i { display: block; height: 100%; background: #005fc0; }
   .limitbox.full .lb-bar i { background: #e04c1e; }
@@ -2083,15 +2088,18 @@ const signedInAs = email => !!viewer.email && normEmail(viewer.email) === normEm
 let signinState = null, signinTimer = null;
 const hhmm = iso => { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } };
 let signinLimitN = 3;
+// segmented bar: one block per sign-in email; filled blocks = sign-ins left this hour
+function limitSegs(left, lim, known) {
+  return `<div class="lb-segs" role="img" aria-label="${known ? `${left} of ${lim} sign-ins left` : `${lim} sign-ins per hour`}">${Array.from({ length: lim }, (_, k) => `<span class="${!known ? "unk" : k < left ? "on" : ""}"></span>`).join("")}</div>`;
+}
 function limitBox(st) {
-  if (!st) return `<div class="limitbox"><div class="lb-top"><strong>Sign-in emails</strong></div><p>Each person can request up to <strong>${signinLimitN}</strong> sign-in emails per hour. Your count appears when you enter your email.</p>
-    <p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
-  const used = st.used || 0, lim = st.limit || 2, left = Math.max(0, lim - used);
+  const note = `<p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
+  if (!st) return `<div class="limitbox"><div class="lb-top"><strong>Sign-ins left this hour</strong><span class="lb-count">up to ${signinLimitN}</span></div>${limitSegs(signinLimitN, signinLimitN, false)}
+    <p>Each person can request up to <strong>${signinLimitN}</strong> sign-in emails per hour. Enter your email to see how many you have left.</p>${note}`;
+  const used = st.used || 0, lim = st.limit || signinLimitN, left = Math.max(0, lim - used);
   signinLimitN = lim;
-  return `<div class="limitbox${left ? "" : " full"}"><div class="lb-top"><strong>Your sign-in emails this hour</strong><span class="lb-count">${used} of ${lim} used</span></div>
-    <div class="lb-bar"><i style="width:${Math.min(100, Math.round(used / lim * 100))}%"></i></div>
-    <p>${left ? `You can request ${left} more sign-in email${left === 1 ? "" : "s"} this hour.` : `You've reached your limit. You can request another sign-in email at about <strong>${esc(hhmm(st.next_free_at))}</strong>.`}</p>
-    <p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
+  return `<div class="limitbox${left ? "" : " full"}"><div class="lb-top"><strong>Sign-ins left this hour</strong><span class="lb-count">${left} of ${lim} left</span></div>${limitSegs(left, lim, true)}
+    <p>${left ? `You can request ${left} more sign-in email${left === 1 ? "" : "s"} this hour.` : `You've used all ${lim} for this hour. You can request another sign-in email at about <strong>${esc(hhmm(st.next_free_at))}</strong>.`}</p>${note}`;
 }
 async function refreshSigninLimit() {
   const email = normEmail($("a-email").value);
