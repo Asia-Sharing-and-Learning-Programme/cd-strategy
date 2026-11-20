@@ -483,7 +483,6 @@
         <button id="dl-pdf" class="pill-btn pill-fill" title="One-page PDF: all territories, one zone or one CWG"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download one-page summary</span><span class="pb-sub">(PDF)</span></button>
         <button id="share-btn" class="pill-btn pill-line" title="Get the link to this website"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="5" r="2.8"/><circle cx="6" cy="12" r="2.8"/><circle cx="18" cy="19" r="2.8"/><path d="M8.5 10.6l7-4.2M8.5 13.4l7 4.2"/></g></svg><span>Share this dashboard</span></button>
         <button id="dl-xlsx" class="pill-btn pill-line pill-small" title="Excel workbook"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="dl-xlsx-label">Download Excel</span></button>
-        <div class="xlsx-note" id="xlsx-note">The public Excel is a locked, read-only copy. An <strong>unlocked version</strong> is available to admins, CWG leads and CD focal persons after they <a href="#" id="xlsx-note-signin">sign in</a>.</div>
       </div>
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
@@ -2502,7 +2501,6 @@ $("dl-xlsx").addEventListener("click", () => {
   $("xdlg").showModal();
 });
 $("xdlg-cancel").addEventListener("click", () => $("xdlg").close());
-$("xlsx-note-signin").addEventListener("click", e => { e.preventDefault(); $("auth-btn").click(); });
 $("xdlg-form").addEventListener("submit", async e => {
   e.preventDefault();
   const email = normEmail($("x-email").value);
@@ -2588,7 +2586,6 @@ function renderXlsxBtn() {
   const u = canUnlockXlsx();
   $("dl-xlsx-label").textContent = u ? "Download Excel (unlocked)" : "Download Excel";
   $("dl-xlsx").title = u ? "Unlocked, editable Excel workbook (for signed-in users)" : "Locked, read-only Excel workbook";
-  $("xlsx-note").hidden = u;
 }
 function renderAuth() {
   renderXlsxBtn();
