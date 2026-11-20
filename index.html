@@ -348,6 +348,16 @@
   .pc-row { display: grid; grid-template-columns: repeat(4, minmax(110px, auto)); gap: 6px 28px; padding: 8px 0; border-bottom: 1px solid var(--border, #eeede9); }
   .pc-row .k { font-size: 12px; color: var(--text-secondary); } .pc-row .v { font-weight: 600; margin-top: 2px; }
   @media (max-width: 700px) { .pc-row { grid-template-columns: 1fr 1fr; } }
+  dialog.mini-dlg { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: 14px; padding: 20px; background: var(--surface-1, #fff); color: var(--text); }
+  dialog.mini-dlg::backdrop { background: rgba(0,0,0,.35); }
+  dialog.mini-dlg h3 { margin: 0 0 6px; font-size: 18px; }
+  dialog.mini-dlg p { font-size: 13px; margin: 6px 0 10px; }
+  .copy-row { display: flex; gap: 6px; margin-top: 4px; } .copy-row input { flex: 1; min-width: 0; }
+  .mini-actions { display: flex; gap: 6px; margin-top: 14px; } .mini-actions .spacer { flex: 1; }
+  .lead-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; } .lead-facts .k { font-size: 12px; color: var(--text-secondary); } .lead-facts .v { font-weight: 600; margin-top: 2px; }
+  .lead-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: inherit; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; cursor: pointer; }
+  .lead-link:hover { text-decoration-style: solid; }
+  button.hl { font: inherit; border: 0; cursor: pointer; background: none; padding: 0; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
   .status-guide { margin-top: 12px; font-size: 13px; } .status-guide summary { cursor: pointer; font-weight: 600; }
   .status-guide { border-top: 1px solid var(--border); padding-top: 10px; }
   .status-guide ol { margin: 6px 0 0 18px; padding: 0; columns: 2 300px; column-gap: 32px; } .status-guide li { break-inside: avoid; } .status-guide li { margin: 5px 0; line-height: 1.45; } .status-guide .sw { margin-right: 6px; }
@@ -415,6 +425,7 @@
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
       <div class="hdr-right">
+        <button id="share-btn" class="small" title="Get the link to this website">Share</button>
         <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (Admins, CWG leads and CD focal persons)">Sign in</button>
         <button id="upd-btn" class="small aslp-btn">Update</button>
       </div>
@@ -753,6 +764,21 @@
     </div>
   </form>
 </dialog>
+<dialog id="sdlg" class="mini-dlg" aria-labelledby="sdlg-title">
+  <h3 id="sdlg-title">Share this website</h3>
+  <p class="muted">Anyone with the link can see the public dashboard. Focal persons, backup persons, CWG leads and admins use the same link to update or sign in.</p>
+  <div class="copy-row"><input type="text" id="sdlg-url" readonly aria-label="Website link"><button type="button" class="small aslp-btn" data-copy="sdlg-url">Copy link</button></div>
+  <div id="sdlg-page" hidden><div class="muted" style="font-size:12px;margin:10px 0 4px">Link to the page you're on now:</div>
+    <div class="copy-row"><input type="text" id="sdlg-page-url" readonly aria-label="Link to this page"><button type="button" class="small" data-copy="sdlg-page-url">Copy</button></div></div>
+  <div class="mini-actions"><button type="button" class="small" id="sdlg-native" hidden>Share via…</button><span class="spacer"></span><button type="button" class="small" data-close>Close</button></div>
+</dialog>
+<dialog id="ldlg2" class="mini-dlg" aria-labelledby="ldlg2-title">
+  <div class="muted" id="ldlg2-cwg" style="font-size:12px;font-weight:600"></div>
+  <h3 id="ldlg2-title" style="margin-top:2px"></h3>
+  <div id="ldlg2-body"></div>
+  <p class="muted" style="font-size:12px">Contact your CWG lead if you need support, e.g. if you have trouble updating your territory or signing in.</p>
+  <div class="mini-actions"><span class="spacer"></span><button type="button" class="small" data-close>Close</button></div>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -809,7 +835,7 @@ function cwgLockup(c) {
 function leadLine(cwg) {
   const l = cwgLeadInfo.find(x => x.cwg === cwg);
   if (!l || !l.name) return "";
-  return `<span class="lead-line"><span class="lead-k">CWG Lead:</span> ${esc(l.name)}${l.role ? `<span class="lead-role">, ${esc(l.role)}</span>` : ""}${l.territory && terrName(l.territory) ? ` <span class="terr-tag">${esc(terrName(l.territory))}</span>` : ""}</span>`;
+  return `<span class="lead-line"><span class="lead-k">CWG Lead:</span> <button type="button" class="lead-link" data-lead="${esc(cwg)}" title="Contact details">${esc(l.name)}</button>${l.role ? `<span class="lead-role">, ${esc(l.role)}</span>` : ""}${l.territory && terrName(l.territory) ? ` <span class="terr-tag">${esc(terrName(l.territory))}</span>` : ""}</span>`;
 }   // territories the signed-in person may edit (status + details)
 const canEditTerr = id => !!viewer.email && myTerrs.some(m => m.id === id && m.canDetails);
 let territories = [];   // [{id, ...data}]
@@ -945,9 +971,43 @@ function renderCwgMatrix() {
 
 /* ---------- render ---------- */
 function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTimeline(); renderConsultation(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
+// Share: main site link (+ the current page, when on a territory or tab) and the device's own share sheet where available
+const SITE_URL = location.origin + location.pathname.replace(/index\.html$/, "");
+async function copyText(txt, btn) {
+  try { await navigator.clipboard.writeText(txt); }
+  catch (e) { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (e2) {} ta.remove(); }
+  if (btn) { const o = btn.textContent; btn.textContent = "Copied"; setTimeout(() => { btn.textContent = o; }, 1500); } else toast("Copied");
+}
+document.querySelectorAll("dialog.mini-dlg").forEach(d => {
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+  d.addEventListener("click", e => { const b = e.target.closest("[data-copy]"); if (b) copyText($(b.dataset.copy).value, b); });
+});
+$("share-btn").addEventListener("click", () => {
+  $("sdlg-url").value = SITE_URL;
+  const here = location.hash && location.hash !== "#" ? SITE_URL + location.hash : "";
+  $("sdlg-page").hidden = !here; $("sdlg-page-url").value = here;
+  $("sdlg-native").hidden = !navigator.share;
+  $("sdlg").showModal(); setTimeout(() => $("sdlg-url").select(), 30);
+});
+$("sdlg-native").addEventListener("click", () => { navigator.share({ title: "Community Development Strategies (ASLP)", url: SITE_URL }).catch(() => {}); });
+// CWG lead contact card (opened from the Database group rows and the help box)
+function openLead(cwg) {
+  const l = cwgLeadInfo.find(x => x.cwg === cwg); if (!l) return;
+  $("ldlg2-cwg").textContent = `${cwg} CWG lead`;
+  $("ldlg2-title").textContent = l.name || "CWG lead";
+  $("ldlg2-body").innerHTML = `<div class="lead-facts">
+      ${l.role ? `<div><div class="k">Appointment / role</div><div class="v">${esc(l.role)}</div></div>` : ""}
+      ${l.territory && terrName(l.territory) ? `<div><div class="k">Territory</div><div class="v">${esc(terrName(l.territory))}</div></div>` : ""}
+    </div>
+    ${l.email ? `<div class="k" style="font-size:12px;color:var(--text-secondary);margin-top:10px">Email</div>
+      <div class="copy-row"><input type="text" id="ldlg2-email" readonly value="${esc(l.email)}" aria-label="Email"><button type="button" class="small aslp-btn" data-copy="ldlg2-email">Copy email</button></div>
+      <div style="margin-top:6px;font-size:13px"><a href="mailto:${esc(l.email)}?subject=${encodeURIComponent("CD Strategies website")}">Write an email</a></div>` : `<p class="muted">No email on record yet.</p>`}`;
+  $("ldlg2").showModal();
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-lead]"); if (b) { e.preventDefault(); e.stopPropagation(); openLead(b.dataset.lead); } }, true);
 function renderHelp() {
   const named = cwgLeadInfo.filter(l => l.name && cwgParts(l.cwg)).sort((a, b) => String(a.cwg).localeCompare(String(b.cwg)));
-  $("help-leads").innerHTML = named.map(l => { const p = cwgParts(l.cwg); return `<span class="hl" style="${cwgVars(l.cwg)}"><span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>${esc(l.name)}</span>`; }).join("");
+  $("help-leads").innerHTML = named.map(l => { const p = cwgParts(l.cwg); return `<button type="button" class="hl" data-lead="${esc(l.cwg)}" title="Contact details" style="${cwgVars(l.cwg)}"><span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>${esc(l.name)}</button>`; }).join("");
 }
 
 function latestInfo() {
