@@ -714,9 +714,9 @@
 <script>
 // Milestone-based statuses: a territory is at the furthest milestone it has actually reached, so it is only ever in one status.
 const STATUSES = [
-  { key: "not_started",  label: "Not started",            here: "No consultation workshop date has been confirmed yet.", next: "a workshop date is confirmed" },
-  { key: "workshop",     label: "Consultation scheduled", here: "The consultation workshop has a confirmed date but hasn't happened yet.", next: "the workshop is held" },
-  { key: "drafting",     label: "Drafting",               here: "The workshop has been held (or skipped), but no complete draft has been formally submitted. Also use this when a draft is sent back for revision.", next: "the full draft is submitted for approval" },
+  { key: "not_started",  label: "Not started",            here: "No consultation workshop has been scheduled and no drafting has begun.", next: "a workshop date is confirmed, or drafting begins (territories that draft without a workshop go straight to Drafting)" },
+  { key: "workshop",     label: "Consultation scheduled", here: "A consultation workshop date is confirmed, but drafting hasn't begun yet.", next: "the workshop is held or drafting begins" },
+  { key: "drafting",     label: "Drafting",               here: "Work on the draft has begun, with or without a consultation workshop, but no complete draft has been formally submitted yet. Also use this when a draft is sent back for revision.", next: "the full draft is submitted for approval" },
   { key: "submitted",    label: "Submitted for approval", here: "The draft is with the approving body or bodies, with no final decision yet.", next: "it is approved, or sent back for revision (back to Drafting)" },
   { key: "approved",     label: "Approved",               here: "The strategy has been approved, but implementation hasn't started yet (e.g. approved in 2026, implementation from 2027).", next: "implementation starts" },
   { key: "implementing", label: "In implementation",      here: "The strategy is approved and its implementation has started.", next: "the strategy period ends" },
