@@ -537,6 +537,7 @@
             <div class="field"><label for="f-period-to">Strategy period: to</label><select id="f-period-to"></select></div>
           </div>
           <div class="field" id="f-target-wrap"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
+          <div class="field"><label for="f-appdate" id="f-appdate-label">Territorial approval date</label><input type="date" id="f-appdate" min="2000-01-01"><div class="hint">The date the CD Strategy was approved. Leave empty if it isn't approved yet.</div></div>
           <div class="field"><label for="f-doc">Document link</label><input type="url" id="f-doc" maxlength="1000" placeholder="https://… (SharePoint, OneDrive, Google Drive)"></div>
           <div class="field"><label for="f-cwg">CWG</label><input type="text" id="f-cwg" maxlength="60" list="cwg-options"><datalist id="cwg-options"></datalist></div>
           <div class="field"><label for="f-country-in">Countries in this territory</label>
@@ -1050,7 +1051,7 @@ async function resolveNames() {}
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
   ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
-  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
+  ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["approvalDate", "Approval date", "f-appdate"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
 ];
 const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
@@ -1148,6 +1149,7 @@ function setStep(n) {
       editOffices = (t.offices || []).map(o => ({ name: o.name || "", lat: o.lat ?? "", lng: o.lng ?? "" })); renderOfficeRows();
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = t.status === "implementing" ? "none" : "";
+      $("f-appdate-label").textContent = isRegion(t) ? "Regional approval date" : "Territorial approval date";
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details"; skip.hidden = true;
       $("dlg-current").textContent = signedInAs(ed.email) ? `Signed in as ${role}` : `Verified as ${role}: ${ed.email}`;
@@ -1515,6 +1517,7 @@ function renderDetail() {
       ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
       ${t.status === "implementing" ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
+      <div><div class="k">${isRegion(t) ? "Regional" : "Territorial"} approval date</div><div class="v">${t.approvalDate ? esc(fmtDate(t.approvalDate)) : "—"}</div></div>
       <div><div class="k">${hqLabel(t)}</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
       ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / divisional / national offices" : "Regional / divisional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
@@ -1855,14 +1858,14 @@ async function buildXLSX(downloader = "") {
   ts.columns = [
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
-    { header: "Target", key: "target", width: 11 }, { header: "Status", key: "status", width: 46 },
+    { header: "Target", key: "target", width: 11 }, { header: "Territorial / regional approval date", key: "appr", width: 18 }, { header: "Status", key: "status", width: 46 },
     { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
-    r.getCell("last").numFmt = "dd mmm yyyy";
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), appr: toDate(t.approvalDate), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
+    r.getCell("last").numFmt = "dd mmm yyyy"; r.getCell("appr").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
   ts.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ts.columnCount } };
