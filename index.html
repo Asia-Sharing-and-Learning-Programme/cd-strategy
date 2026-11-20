@@ -370,6 +370,10 @@
   dialog.mini-dlg::backdrop { background: rgba(0,0,0,.35); }
   dialog.mini-dlg h3 { margin: 0 0 6px; font-size: 18px; }
   dialog.mini-dlg p { font-size: 13px; margin: 6px 0 10px; }
+  .share-apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 6px; }
+  .share-app { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; background: transparent; cursor: pointer; }
+  .share-app:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+  .sa-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .copy-row { display: flex; gap: 6px; margin-top: 4px; } .copy-row input { flex: 1; min-width: 0; }
   .mini-actions { display: flex; gap: 6px; margin-top: 14px; } .mini-actions .spacer { flex: 1; }
   .lead-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; } .lead-facts .k { font-size: 12px; color: var(--text-secondary); } .lead-facts .v { font-weight: 600; margin-top: 2px; }
@@ -788,7 +792,15 @@
   <div class="copy-row"><input type="text" id="sdlg-url" readonly aria-label="Website link"><button type="button" class="small aslp-btn" data-copy="sdlg-url">Copy link</button></div>
   <div id="sdlg-page" hidden><div class="muted" style="font-size:12px;margin:10px 0 4px">Link to the page you're on now:</div>
     <div class="copy-row"><input type="text" id="sdlg-page-url" readonly aria-label="Link to this page"><button type="button" class="small" data-copy="sdlg-page-url">Copy</button></div></div>
-  <div class="mini-actions"><button type="button" class="small" id="sdlg-native" hidden>Share via…</button><span class="spacer"></span><button type="button" class="small" data-close>Close</button></div>
+  <div class="muted" style="font-size:12px;margin:14px 0 6px">Share via</div>
+  <div class="share-apps">
+    <a class="share-app" id="sh-wa" target="_blank" rel="noopener noreferrer"><span class="sa-dot" style="background:#25d366"></span>WhatsApp</a>
+    <a class="share-app" id="sh-ol"><span class="sa-dot" style="background:#0078d4"></span>Outlook</a>
+    <a class="share-app" id="sh-tm" target="_blank" rel="noopener noreferrer"><span class="sa-dot" style="background:#5b5fc7"></span>Teams</a>
+    <button type="button" class="share-app" id="sdlg-native" hidden>More…</button>
+  </div>
+  <div class="muted" style="font-size:12px;margin-top:6px">Outlook opens a new email in your email app. Using Outlook in a browser? <a id="sh-olweb" target="_blank" rel="noopener noreferrer">Open Outlook on the web</a>.</div>
+  <div class="mini-actions"><span class="spacer"></span><button type="button" class="small" data-close>Close</button></div>
 </dialog>
 <dialog id="ldlg2" class="mini-dlg" aria-labelledby="ldlg2-title">
   <div class="muted" id="ldlg2-cwg" style="font-size:12px;font-weight:600"></div>
@@ -1005,6 +1017,12 @@ $("share-btn").addEventListener("click", () => {
   const here = location.hash && location.hash !== "#" ? SITE_URL + location.hash : "";
   $("sdlg-page").hidden = !here; $("sdlg-page-url").value = here;
   $("sdlg-native").hidden = !navigator.share;
+  const subj = "Community Development Strategies website (ASLP)";
+  const msg = `Here is the link to the Community Development Strategies website (Asia-Pacific Sharing & Learning Programme): ${SITE_URL}`;
+  $("sh-wa").href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  $("sh-ol").href = `mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(msg)}`;
+  $("sh-olweb").href = `https://outlook.office.com/mail/deeplink/compose?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(msg)}`;
+  $("sh-tm").href = `https://teams.microsoft.com/share?href=${encodeURIComponent(SITE_URL)}&msgText=${encodeURIComponent("Community Development Strategies website (ASLP)")}`;
   $("sdlg").showModal(); setTimeout(() => $("sdlg-url").select(), 30);
 });
 $("sdlg-native").addEventListener("click", () => { navigator.share({ title: "Community Development Strategies (ASLP)", url: SITE_URL }).catch(() => {}); });
