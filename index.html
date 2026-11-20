@@ -68,7 +68,9 @@
   body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
          background: var(--surface-0); color: var(--text-primary); }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 48px; }
-  .logo-bar { margin-bottom: 14px; }
+  .logo-bar { margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
+  .logo-bar picture, .logo-bar img { flex: 0 1 560px; min-width: 0; }
+  .logo-bar .theme-seg { order: 2; flex: none; }
   .logo-bar img { display: block; width: 100%; max-width: 560px; height: auto; }
   .logo-dark { display: none !important; }
   @media (prefers-color-scheme: dark) {
@@ -435,7 +437,8 @@
 
   /* ---------- phones ---------- */
   @media (max-width: 640px) {
-    .logo-bar img { max-width: none; width: 100%; }
+    .logo-bar img { max-width: none; width: 100%; flex-basis: 100%; }
+    .logo-bar .theme-seg { order: -1; margin-left: auto; }
     h1 { font-size: 21px; }
     .hdr-actions { gap: 8px; }
     .hdr-actions > button, .hdr-right button { padding: 7px 11px; }
@@ -472,7 +475,9 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="logo-bar"><img class="logo-light" src="aslp-logo-light.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"><img class="logo-dark" src="aslp-logo-dark.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"></div>
+  <div class="logo-bar"><div class="seg theme-seg" role="group" aria-label="Theme">
+        <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
+      </div><img class="logo-light" src="aslp-logo-light.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"><img class="logo-dark" src="aslp-logo-dark.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"></div>
   <header>
     <div>
       <h1>Community Development Strategies</h1>
@@ -483,9 +488,6 @@
         <button id="dl-pdf" class="pill-btn pill-fill" title="One-page PDF: all territories, one zone or one CWG"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download one-page summary</span><span class="pb-sub">(PDF)</span></button>
         <button id="share-btn" class="pill-btn pill-line" title="Get the link to this website"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="5" r="2.8"/><circle cx="6" cy="12" r="2.8"/><circle cx="18" cy="19" r="2.8"/><path d="M8.5 10.6l7-4.2M8.5 13.4l7 4.2"/></g></svg><span>Share this dashboard</span></button>
         <button id="dl-xlsx" class="pill-btn pill-line pill-small" title="Excel workbook"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="dl-xlsx-label">Download Excel</span></button>
-      </div>
-      <div class="seg" role="group" aria-label="Theme">
-        <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
       </div>
       <div class="hdr-right">
         <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (Admins, CWG leads and CD focal persons)">Sign in</button>
