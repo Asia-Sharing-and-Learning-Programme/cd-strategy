@@ -293,6 +293,10 @@
   .pill-line:hover { background: color-mix(in srgb, var(--pill) 9%, transparent); }
   .pill-small { padding: 10px 16px; }
   .pill-btn:disabled { opacity: .6; cursor: wait; }
+  .xlsx-note { flex-basis: 100%; font-size: 12px; color: var(--text-muted); margin-top: -2px; }
+  .xlsx-note a { color: var(--pill); font-weight: 600; }
+  .xlsx-callout { margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.45; border: 1px solid color-mix(in srgb, var(--pill) 35%, transparent); background: color-mix(in srgb, var(--pill) 7%, transparent); }
+  .xlsx-callout a, .xlsx-callout button.linkish { color: var(--pill); font-weight: 600; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; }
   .hdr-right button { border-radius: 999px; padding: 9px 20px; font-size: 14px; }
   .hdr-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
   .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; padding-left: 18px; padding-right: 18px; }
@@ -438,6 +442,7 @@
     .pill-row { width: 100%; display: grid; grid-template-columns: 1fr; gap: 10px; }
     .pill-row .pill-fill { padding: 15px 18px; font-size: 16px; }
     .pill-row .pill-line { padding: 13px 16px; font-size: 15.5px; }
+    .xlsx-note { margin-top: -4px; text-align: center; }
     .hdr-right { margin-left: 0; width: 100%; }
     .hdr-right button { flex: 1; }
     .card { padding: 14px; }
@@ -477,7 +482,8 @@
       <div class="pill-row">
         <button id="dl-pdf" class="pill-btn pill-fill" title="One-page PDF: all territories, one zone or one CWG"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download one-page summary</span><span class="pb-sub">(PDF)</span></button>
         <button id="share-btn" class="pill-btn pill-line" title="Get the link to this website"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="5" r="2.8"/><circle cx="6" cy="12" r="2.8"/><circle cx="18" cy="19" r="2.8"/><path d="M8.5 10.6l7-4.2M8.5 13.4l7 4.2"/></g></svg><span>Share this dashboard</span></button>
-        <button id="dl-xlsx" class="pill-btn pill-line pill-small" title="Excel workbook (read-only)"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download Excel</span></button>
+        <button id="dl-xlsx" class="pill-btn pill-line pill-small" title="Excel workbook"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="dl-xlsx-label">Download Excel</span></button>
+        <div class="xlsx-note" id="xlsx-note">The public Excel is a locked, read-only copy. An <strong>unlocked version</strong> is available to admins, CWG leads and CD focal persons after they <a href="#" id="xlsx-note-signin">sign in</a>.</div>
       </div>
       <div class="seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
@@ -789,7 +795,8 @@
   <form id="xdlg-form" method="dialog" novalidate>
     <div class="dlg-body">
       <h3>Download Excel</h3>
-      <div class="muted" style="font-size:13px;margin-top:4px">Please enter your email to download the read-only Excel workbook. Your email and the time of download are shared with the ASLP CD Strategies team.</div>
+      <div class="muted" style="font-size:13px;margin-top:4px" id="xdlg-intro"></div>
+      <div class="xlsx-callout" id="xdlg-note"></div>
       <div class="field"><label for="x-email">Your email</label><input type="email" id="x-email" autocomplete="email" maxlength="200" placeholder="name@salvationarmy.org"></div>
       <div class="err" id="xdlg-err"></div>
     </div>
@@ -2322,7 +2329,7 @@ async function buildPDF() {
 }
 
 const appsText = a => (a || []).map(x => `${x.body || "Approval"}: ${x.date ? fmtDate(x.date) : "not yet approved"}`).join("; ");
-async function buildXLSX(downloader = "") {
+async function buildXLSX(downloader = "", unlocked = false) {
   await loadScript("vendor/exceljs.min.js");
   const wb = new ExcelJS.Workbook();
   wb.creator = "CD Strategy Tracker"; wb.created = new Date();
@@ -2388,16 +2395,22 @@ async function buildXLSX(downloader = "") {
   tot.font = { bold: true }; for (let k = 2; k <= 7; k++) tot.getCell(k).alignment = { horizontal: "center" };
 
   // No update-history sheet: the history stays on the website (and in each territory's history Excel for editors).
-  // read-only copy: watermark on every sheet, every sheet locked with a random one-off password
+  // public: read-only copy, watermark on every sheet, every sheet locked with a random one-off password.
+  // signed-in admins / CWG leads / focal persons: unlocked copy (no protection, no watermark).
   const stamp = new Date().toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  ds.getCell("A11").value = `Read-only copy downloaded on ${stamp}`;   // no personal details in the file (downloads are still recorded for admins)
+  ds.getCell("A11").value = `${unlocked ? "Unlocked copy (signed-in user)" : "Read-only copy"} downloaded on ${stamp}`;   // no personal details in the file (downloads are still recorded for admins)
   ds.getCell("A11").font = { italic: true, size: 9, color: { argb: "FF7A7974" } };
+  if (unlocked) {
+    for (const ws of wb.worksheets) ws.headerFooter.oddFooter = `&L© 2026 Asia-Pacific Sharing & Learning Programme (ASLP) – unlocked copy for the ASLP team&R${stamp}`;
+    wb.calcProperties = { fullCalcOnLoad: true };
+    return new Blob([await wb.xlsx.writeBuffer()]);
+  }
   let wmId = null;
   try { wmId = wb.addImage({ base64: await fileDataURL("aslp-watermark.png"), extension: "png" }); } catch (e) {}
   const pw = randomPassword();
   for (const ws of wb.worksheets) {
     if (wmId !== null) ws.addBackgroundImage(wmId);
-    ws.headerFooter.oddFooter = `&L© 2026 Asia-Pacific Sharing & Learning Programme (ASLP) – read-only copy&R${(downloader || "").replace(/&/g, "&&")} · ${stamp}`;
+    ws.headerFooter.oddFooter = `&L© 2026 Asia-Pacific Sharing & Learning Programme (ASLP) – read-only copy&R${stamp}`;
     await ws.protect(pw, { selectLockedCells: true, selectUnlockedCells: true, formatCells: false, formatColumns: false, formatRows: false,
       insertRows: false, insertColumns: false, deleteRows: false, deleteColumns: false, sort: false, autoFilter: false, objects: false, scenarios: false });
   }
@@ -2478,10 +2491,18 @@ $("pdlg-form").addEventListener("submit", async e => {
 });
 $("dl-xlsx").addEventListener("click", () => {
   let remembered = ""; try { remembered = sessionStorage.getItem("cd-email") || ""; } catch (e) {}
-  $("x-email").value = viewer.email || remembered; $("xdlg-err").textContent = ""; $("xdlg-go").disabled = false; $("xdlg-go").textContent = "Download Excel";
+  const u = canUnlockXlsx();
+  $("x-email").value = viewer.email || remembered; $("x-email").readOnly = !!viewer.email;
+  $("xdlg-err").textContent = ""; $("xdlg-go").disabled = false; $("xdlg-go").textContent = u ? "Download unlocked Excel" : "Download read-only Excel";
+  $("xdlg-intro").textContent = u ? "Your email and the time of download are shared with the ASLP CD Strategies team." : "Please enter your email to download the Excel workbook. Your email and the time of download are shared with the ASLP CD Strategies team.";
+  $("xdlg-note").innerHTML = u
+    ? `<strong>Unlocked version.</strong> You're signed in, so you'll get an editable copy with no sheet protection and no watermark. Please keep it within the ASLP team.`
+    : `<strong>This is a locked, read-only copy.</strong> An unlocked (editable) version is available to admins, CWG leads and CD focal persons who have sign-in access. <button type="button" class="linkish" id="xdlg-signin">Sign in</button> first to get it.`;
+  const si = $("xdlg-signin"); if (si) si.addEventListener("click", () => { $("xdlg").close(); $("auth-btn").click(); });
   $("xdlg").showModal();
 });
 $("xdlg-cancel").addEventListener("click", () => $("xdlg").close());
+$("xlsx-note-signin").addEventListener("click", e => { e.preventDefault(); $("auth-btn").click(); });
 $("xdlg-form").addEventListener("submit", async e => {
   e.preventDefault();
   const email = normEmail($("x-email").value);
@@ -2490,16 +2511,16 @@ $("xdlg-form").addEventListener("submit", async e => {
   try {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/notify-download`, {
       method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
-      body: JSON.stringify({ email, file: "excel", filter: filterLabel(cwgFilter) || "All zones and CWGs" }),
+      body: JSON.stringify({ email, file: canUnlockXlsx() ? "excel (unlocked)" : "excel", filter: filterLabel(cwgFilter) || "All zones and CWGs" }),
     });
     const res = await r.json().catch(() => ({}));
     if (!r.ok || !res.ok) throw new Error(res.error || "Couldn't record the download. Please try again.");
     try { sessionStorage.setItem("cd-email", email); } catch (e2) {}
-    const blob = await buildXLSX(email);
+    const blob = await buildXLSX(email, canUnlockXlsx());
     $("xdlg").close();
-    await saveFile(`Community_Development_Strategies_${fileStamp()}.xlsx`, blob, $("dl-xlsx"), null);
+    await saveFile(`Community_Development_Strategies${canUnlockXlsx() ? "_unlocked" : ""}_${fileStamp()}.xlsx`, blob, $("dl-xlsx"), null);
   } catch (err) {
-    go.disabled = false; go.textContent = "Download Excel";
+    go.disabled = false; go.textContent = canUnlockXlsx() ? "Download unlocked Excel" : "Download read-only Excel";
     $("xdlg-err").textContent = (err && err.message) || "Couldn't prepare the Excel file. Please try again.";
   }
 });
@@ -2561,7 +2582,16 @@ async function load() {
     banner(loadedOnce ? "Couldn't refresh just now — showing the last loaded data." : "The data couldn't be loaded. Please check your connection and reload the page.");
   }
 }
+// Signed-in admins, CWG leads and CD focal persons get an unlocked (editable) Excel; everyone else a locked, read-only copy
+const canUnlockXlsx = () => !!viewer.email && (isEditor || isFocalViewer());
+function renderXlsxBtn() {
+  const u = canUnlockXlsx();
+  $("dl-xlsx-label").textContent = u ? "Download Excel (unlocked)" : "Download Excel";
+  $("dl-xlsx").title = u ? "Unlocked, editable Excel workbook (for signed-in users)" : "Locked, read-only Excel workbook";
+  $("xlsx-note").hidden = u;
+}
 function renderAuth() {
+  renderXlsxBtn();
   const b = $("auth-btn");
   b.textContent = viewer.email ? (isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
   b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in (Admins, CWG leads and CD focal persons)";
