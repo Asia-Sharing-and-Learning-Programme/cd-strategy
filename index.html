@@ -84,6 +84,18 @@
   :root { --tl-start: #005fc0; --tl-end: #e04c1e; }
   :root[data-theme="dark"] { --tl-start: #3d86dc; --tl-end: #e8602c; }
   @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --tl-start: #3d86dc; --tl-end: #e8602c; } }
+  :root { --cn-before: #005fc0; --cn-during: #f5c400; --cn-none: #e04c1e; --cn-unk: #d9d8d3; }
+  :root[data-theme="dark"] { --cn-before: #3d86dc; --cn-unk: #3a3a37; }
+  @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --cn-before: #3d86dc; --cn-unk: #3a3a37; } }
+  .cons-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .cons-big { font-size: 28px; font-weight: 700; }
+  .cons-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--surface-0, transparent); }
+  .cons-bar span { display: block; height: 100%; min-width: 3px; }
+  .cons-table td:not(:first-child), .cons-table th:not(:first-child) { text-align: right; }
+  .cons-choice { display: flex; gap: 16px; flex-wrap: wrap; margin: 2px 0 6px; font-size: 14px; }
+  .field .cons-choice label, .cons-choice label { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; width: auto; white-space: nowrap; margin: 0; }
+  .field .cons-choice input { width: 16px; height: 16px; flex: none; padding: 0; }
+  .cons-choice input { width: 16px; height: 16px; margin: 0; }
   .tl-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
   .tl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
   .tl-table th, .tl-table td { text-align: center; font-variant-numeric: tabular-nums; padding: 5px 6px; font-size: 12px; }
@@ -457,6 +469,15 @@
     <div class="muted" id="tl-note" style="font-size:12px;margin-top:8px"></div>
   </section>
 
+  <section class="card" style="margin-bottom:16px" id="cons-card">
+    <h2 style="margin:0 0 2px">Consultation or workshop before or during drafting</h2>
+    <div class="muted" style="font-size:12px;margin-bottom:10px">Whether each territory held a strategy consultation or workshop, and whether it was before drafting began or while drafting, as recorded in its CD Strategy details.</div>
+    <div class="cons-head"><span class="cons-big" id="cons-big">–</span><span id="cons-sub" class="muted"></span></div>
+    <div class="cons-bar" id="cons-bar" role="img"></div>
+    <div class="tl-legend" id="cons-legend" style="margin:8px 0 4px"></div>
+    <div class="tblwrap" style="margin-top:8px"><table class="tl-table cons-table" aria-label="Consultation or workshop by CWG"><thead id="cons-head"></thead><tbody id="cons-body"></tbody></table></div>
+  </section>
+
   <section class="card" style="margin-bottom:16px">
     <div class="toolbar">
       <h2 style="margin:0">Territory map</h2>
@@ -574,6 +595,23 @@
           <div class="two">
             <div class="field"><label for="f-period-from">Strategy period: from</label><select id="f-period-from"></select></div>
             <div class="field"><label for="f-period-to">Strategy period: to</label><select id="f-period-to"></select></div>
+          </div>
+          <div class="field"><label>Strategy consultation or workshop</label>
+            <div class="cons-choice" role="group" aria-label="Was a strategy consultation or workshop held?">
+              <label><input type="checkbox" id="f-cons-yes"> Held</label>
+              <label><input type="checkbox" id="f-cons-no"> Not held</label>
+            </div>
+            <div id="f-cons-held" hidden>
+              <div class="two">
+                <div class="field"><label for="f-cons-from">From</label><input type="date" id="f-cons-from" min="2010-01-01"></div>
+                <div class="field"><label for="f-cons-to">To <span class="muted" style="font-weight:400">(same day if one day)</span></label><input type="date" id="f-cons-to" min="2010-01-01"></div>
+              </div>
+              <div class="cons-choice" role="radiogroup" aria-label="When was it held?" style="margin-top:8px">
+                <label><input type="radio" name="f-cons-when" value="before"> Before drafting began</label>
+                <label><input type="radio" name="f-cons-when" value="during"> During drafting</label>
+              </div>
+            </div>
+            <div class="hint">Leave both unticked if you don't know yet.</div>
           </div>
           <div class="field" id="f-target-wrap"><label for="f-target">Target (approval)</label><input type="text" id="f-target" maxlength="40" placeholder="e.g. Q2 2026"></div>
           <div class="field"><label id="f-appdate-label">Approving bodies and approval dates</label>
@@ -900,7 +938,7 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTimeline(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTimeline(); renderConsultation(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
 function renderHelp() {
   const named = cwgLeadInfo.filter(l => l.name && cwgParts(l.cwg)).sort((a, b) => String(a.cwg).localeCompare(String(b.cwg)));
   $("help-leads").innerHTML = named.map(l => { const p = cwgParts(l.cwg); return `<span class="hl" style="${cwgVars(l.cwg)}"><span class="mini-lock"><span class="cl-zone">${p.zone}</span><span class="cl-num">${p.num}</span></span>${esc(l.name)}</span>`; }).join("");
@@ -1007,6 +1045,24 @@ function timelineData(list) {
   const starts = years.map(y => withP.filter(x => x.p[0] === y)), ends = years.map(y => withP.filter(x => x.p[1] === y));
   const active = years.map(y => withP.filter(x => x.p[0] <= y && y <= x.p[1]).length);
   return { years, withP, starts, ends, active, covered };
+}
+// Consultation / workshop record: {held, from, to, timing:'before'|'during'}; missing = not recorded
+const CONS = [["before", "Held before drafting began", "var(--cn-before)"], ["during", "Held during drafting", "var(--cn-during)"], ["none", "Not held", "var(--cn-none)"], ["unk", "Not recorded yet", "var(--cn-unk)"]];
+const consKey = t => { const c = t.consultation; return !c ? "unk" : !c.held ? "none" : (c.timing === "during" ? "during" : "before"); };
+const consText = c => !c ? "" : !c.held ? "Not held" : `Held ${fmtDate(c.from)}${c.to && c.to !== c.from ? ` to ${fmtDate(c.to)}` : ""}, ${c.timing === "during" ? "during drafting" : "before drafting began"}`;
+function renderConsultation() {
+  const list = viewTerr(), n = list.length;
+  const cnt = k => list.filter(t => consKey(t) === k).length;
+  const held = cnt("before") + cnt("during"), rec = n - cnt("unk");
+  $("cons-big").textContent = `${held} of ${n}`;
+  $("cons-sub").textContent = `territories held a consultation or workshop${rec < n ? ` (${n - rec} not recorded yet)` : ""}`;
+  $("cons-bar").setAttribute("aria-label", CONS.map(([k, l]) => `${l}: ${cnt(k)}`).join(", "));
+  $("cons-bar").innerHTML = CONS.map(([k, l, col]) => { const v = cnt(k); return v ? `<span style="flex:${v};background:${col}" title="${esc(l)}: ${v}\n${esc(list.filter(t => consKey(t) === k).map(t => t.name).sort().join(", "))}"></span>` : ""; }).join("");
+  $("cons-legend").innerHTML = CONS.map(([k, l, col]) => `<span><i style="background:${col}"></i>${esc(l)}: <strong>${cnt(k)}</strong></span>`).join("");
+  const cl = cwgList().filter(c => list.some(t => cwgOf(t) === c));
+  $("cons-head").innerHTML = `<tr><th>CWG</th>${CONS.map(([, l]) => `<th>${esc(l)}</th>`).join("")}<th>Total</th></tr>`;
+  $("cons-body").innerHTML = cl.map(c => { const g = list.filter(t => cwgOf(t) === c);
+    return `<tr><td>${esc(c)}</td>${CONS.map(([k]) => { const v = g.filter(t => consKey(t) === k).length; return `<td class="${v ? "" : "z"}">${v}</td>`; }).join("")}<td><strong>${g.length}</strong></td></tr>`; }).join("");
 }
 function renderTimeline() {
   const list = viewTerr(), { years, withP, starts, ends, active, covered } = timelineData(list);
@@ -1243,6 +1299,26 @@ function renderOfficeRows() {
   $("f-offices").querySelectorAll("button[data-oi]").forEach(b => b.addEventListener("click", () => { readOfficeRows(); editOffices.splice(+b.dataset.oi, 1); renderOfficeRows(); }));
 }
 $("f-office-add").addEventListener("click", () => { readOfficeRows(); editOffices.push({ name: "", lat: "", lng: "" }); renderOfficeRows(); $("f-offices").querySelector(".office-row:last-child [data-o=name]").focus(); });
+// consultation / workshop: two tick boxes that act as one choice
+function syncCons() { $("f-cons-held").hidden = !$("f-cons-yes").checked; }
+$("f-cons-yes").addEventListener("change", () => { if ($("f-cons-yes").checked) $("f-cons-no").checked = false; syncCons(); });
+$("f-cons-no").addEventListener("change", () => { if ($("f-cons-no").checked) $("f-cons-yes").checked = false; syncCons(); });
+function fillCons(c) {
+  $("f-cons-yes").checked = !!(c && c.held); $("f-cons-no").checked = !!(c && c.held === false);
+  $("f-cons-from").value = c && c.from || ""; $("f-cons-to").value = c && c.to || "";
+  document.querySelectorAll("input[name=f-cons-when]").forEach(r => { r.checked = !!(c && c.timing === r.value); });
+  const mx = todayISO(); $("f-cons-from").max = mx; $("f-cons-to").max = mx;
+  syncCons();
+}
+function readCons() {
+  if ($("f-cons-no").checked) return { held: false };
+  if (!$("f-cons-yes").checked) return null;
+  const from = $("f-cons-from").value, to = $("f-cons-to").value || from, w = document.querySelector("input[name=f-cons-when]:checked");
+  if (!from) throw "Please give the date the consultation or workshop started.";
+  if (to < from) throw "The consultation or workshop end date can't be before its start date.";
+  if (!w) throw "Please tick whether the consultation or workshop was held before drafting began or during drafting.";
+  return { held: true, from, to, timing: w.value };
+}
 // approving bodies editor
 let editApprovals = [];
 function readApprovalRows() {
@@ -1326,7 +1402,7 @@ function setStep(n) {
       editOffices = (t.offices || []).map(o => ({ name: o.name || "", lat: o.lat ?? "", lng: o.lng ?? "" })); renderOfficeRows();
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = sIndex(t.status) >= 4 ? "none" : "";
-      editApprovals = (t.approvals || []).map(a => ({ body: a.body || "", date: a.date || "" })); if (!editApprovals.length) editApprovals.push({ body: "", date: "" }); renderApprovalRows(); renderCycleBox(t);
+      fillCons(t.consultation); editApprovals = (t.approvals || []).map(a => ({ body: a.body || "", date: a.date || "" })); if (!editApprovals.length) editApprovals.push({ body: "", date: "" }); renderApprovalRows(); renderCycleBox(t);
       [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details"; skip.hidden = true;
       $("dlg-current").textContent = signedInAs(ed.email) ? `Signed in as ${role}` : `Verified as ${role}: ${ed.email}`;
@@ -1447,6 +1523,7 @@ $("dlg-form").addEventListener("submit", async e => {
     const apps = editApprovals.map(a => ({ body: String(a.body).trim(), date: a.date })).filter(a => a.body || a.date);
     if (apps.some(a => !a.body)) { $("dlg-err").textContent = "Please name the approving body for each approval date (or remove the empty row)."; return; }
     vals.approvals = apps;
+    try { vals.consultation = readCons(); } catch (m) { $("dlg-err").textContent = m; return; }
     if (vals.focalEmail && !validEmail(vals.focalEmail)) { $("dlg-err").textContent = "The focal person email doesn't look right."; return; }
     if (vals.docLink && !/^https?:\/\//i.test(vals.docLink)) { $("dlg-err").textContent = "The document link should start with https://"; return; }
     if (vals.focalEmail) vals.focalEmail = normEmail(vals.focalEmail);
@@ -1582,6 +1659,7 @@ function statusFlags(t, statusKey) {
   if (k === "implementing" && p && p[0] > yr) f.push(`Status is "In implementation", but the strategy period only starts in ${p[0]}. If implementation hasn't started, "Approved" may fit better.`);
   if ((k === "approved" || k === "implementing") && p && p[1] < yr) f.push(`The strategy period ended in ${p[1]}. If so, the status may be "Period ended".`);
   if (k === "ended" && p && p[1] >= yr) f.push(`Status is "Period ended", but the strategy period runs until ${p[1]}.`);
+  if (t.consultation && t.consultation.held && t.consultation.timing === "during" && i >= 0 && i < 2) f.push(`The consultation or workshop is recorded as held during drafting, but the status is "${STATUSES[i].label}". If drafting has begun, "Drafting" may fit better.`);
   if (i >= 0 && i < 4 && p && p[1] < yr) f.push(`The strategy period (${t.strategyPeriod}) is already over, but the strategy isn't approved yet. Please check the period.`);
   return f;
 }
@@ -1722,6 +1800,7 @@ function renderDetail() {
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
       ${sIndex(t.status) >= 4 ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
       <div><div class="k">Approving bodies</div><div class="v">${approvalsHtml(t.approvals)}</div></div>
+      <div><div class="k">Consultation / workshop</div><div class="v">${t.consultation ? esc(consText(t.consultation)) : "Not recorded yet"}</div></div>
       <div><div class="k">${hqLabel(t)}</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
       ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / divisional / national offices" : "Regional / divisional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
@@ -1732,6 +1811,7 @@ function renderDetail() {
     ${(t.pastCycles || []).length ? `<div class="past-cycles"><div class="k-title">Previous strategy cycles</div>${[...t.pastCycles].reverse().map(c => `<div class="pc-row">
       <div><div class="k">Strategy period</div><div class="v">${esc(c.period || "—")}</div></div>
       <div><div class="k">Approving bodies</div><div class="v">${approvalsHtml(c.approvals)}</div></div>
+      ${c.consultation ? `<div><div class="k">Consultation / workshop</div><div class="v">${esc(consText(c.consultation))}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(c.docLink || "") ? `<a href="${esc(c.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
       <div><div class="k">New cycle started</div><div class="v">${c.archivedOn ? esc(fmtDate(c.archivedOn)) : "—"}</div></div></div>`).join("")}</div>` : ""}`;
   const te = $("td-edit"); if (te) te.addEventListener("click", () => openDialog(t.id));
@@ -2124,13 +2204,13 @@ async function buildXLSX(downloader = "") {
   ts.columns = [
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
     { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
-    { header: "Target", key: "target", width: 11 }, { header: "Approving bodies and approval dates", key: "apps", width: 44 }, { header: "Latest approval date", key: "appr", width: 16 }, { header: "Status", key: "status", width: 24 },
+    { header: "Target", key: "target", width: 11 }, { header: "Consultation / workshop", key: "cons", width: 44 }, { header: "Approving bodies and approval dates", key: "apps", width: 44 }, { header: "Latest approval date", key: "appr", width: 16 }, { header: "Status", key: "status", width: 24 },
     { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 }, { header: "Previous strategy cycles", key: "past", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), apps: appsText(t.approvals), appr: toDate(t.approvalDate), past: (t.pastCycles || []).map(c => `${c.period || "No period"}${(c.approvals || []).length ? ` (${appsText(c.approvals)})` : ""}`).join("; "), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), cons: t.consultation ? consText(t.consultation) : "Not recorded yet", apps: appsText(t.approvals), appr: toDate(t.approvalDate), past: (t.pastCycles || []).map(c => `${c.period || "No period"}${(c.approvals || []).length ? ` (${appsText(c.approvals)})` : ""}`).join("; "), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
     r.getCell("last").numFmt = "dd mmm yyyy"; r.getCell("appr").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
