@@ -1014,7 +1014,8 @@ function renderLog() {
   const el = $("log-list");
   $("td-count").textContent = list.length ? `${list.length} update${list.length === 1 ? "" : "s"}` : "";
   if (!list.length) { el.innerHTML = `<div class="muted">No updates logged for this territory yet.${canWrite && db && !summaryMode ? " Registered focal and backup persons can record one with the orange <strong>Update</strong> button." : ""}</div>`; return; }
-  el.innerHTML = list.map(l => {
+  const publicNote = list.some(l => l.full === false) ? `<div class="muted" style="font-size:12px;margin-bottom:8px">Showing what was updated. Notes and full details are visible when signed in (admins, the CWG lead and this territory's CD focal person).</div>` : "";
+  el.innerHTML = publicNote + list.map(l => {
     const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus);
     const from = fi >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(fi)};margin:0"></span>${esc(SHORT[fi])}</span>` : "";
     const to = ti >= 0 ? `<span class="badge"><span class="sw" style="background:${sColor(ti)};margin:0"></span>${esc(SHORT[ti])}</span>` : "";
@@ -1024,10 +1025,12 @@ function renderLog() {
     return `<div class="log-item">
       <div class="log-date">${esc(fmtDate(l.date))}</div>
       <div class="log-main">
-        ${isDet ? `<div><span class="dbadge">CD Strategy details updated</span></div>${(l.changes || []).map(c => `<div class="chg"><b>${esc(c.label)}:</b> ${c.from ? esc(c.from) : "—"} <span class="arrow">→</span> ${c.to ? esc(c.to) : "—"}</div>`).join("")}`
+        ${isDet ? `<div><span class="dbadge">CD Strategy details updated</span></div>${l.full === false
+            ? ((l.changes || []).length ? `<div class="chg muted">Updated: ${(l.changes || []).map(c => esc(c.label)).join(", ")}</div>` : "")
+            : (l.changes || []).map(c => `<div class="chg"><b>${esc(c.label)}:</b> ${c.from ? esc(c.from) : "—"} <span class="arrow">→</span> ${c.to ? esc(c.to) : "—"}</div>`).join("")}`
           : `<div>${from && fi !== ti ? `${from}<span class="arrow">→</span>` : ""}${to}${fi === ti ? ' <span class="muted" style="font-size:12px">(status unchanged)</span>' : ""}</div>`}
         ${l.note ? `<div class="note">${esc(l.note)}</div>` : ""}
-        <div class="meta">${who ? `Logged by ${esc(who)} · ` : ""}${recorded ? `recorded ${esc(recorded)}` : ""}${l.editedAt ? ` · <span class="edited">edited ${esc(new Date(l.editedAt).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }))}${l.editedBy && names[l.editedBy] ? " by " + esc(names[l.editedBy]) : ""}</span>` : ""}</div>
+        ${l.full === false ? "" : `<div class="meta">${who ? `Logged by ${esc(who)} · ` : ""}${recorded ? `recorded ${esc(recorded)}` : ""}${l.editedAt ? ` · <span class="edited">edited ${esc(new Date(l.editedAt).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }))}${l.editedBy && names[l.editedBy] ? " by " + esc(names[l.editedBy]) : ""}</span>` : ""}</div>`}
         ${isEditor && !summaryMode && canAdminTerr(l.territoryId) ? `<div class="log-actions">${isDet ? "" : `<button data-edit="${esc(l.id)}">Edit</button>`}<button class="danger" data-del="${esc(l.id)}">Delete</button></div>` : ""}
       </div></div>`;
   }).join("");
@@ -1889,7 +1892,7 @@ async function buildXLSX(downloader = "") {
     const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus);
     const r = ls.addRow({
       date: toDate(l.date), terr: l.territoryName, from: fi >= 0 ? STATUSES[fi].label : "", to: ti >= 0 ? STATUSES[ti].label : "",
-      type: l.type === "details" ? "Details" : "Status", note: l.note || "", chg: (l.changes || []).map(c => `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join("\n"), email: l.email || "", by: whoName(l), rec: l.createdAt ? new Date(l.createdAt) : null, ed: l.editedAt ? new Date(l.editedAt) : null,
+      type: l.type === "details" ? "Details" : "Status", note: l.note || "", chg: (l.changes || []).map(c => l.full === false ? c.label : `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join(l.full === false ? ", " : "\n"), email: l.email || "", by: whoName(l), rec: l.createdAt ? new Date(l.createdAt) : null, ed: l.editedAt ? new Date(l.editedAt) : null,
     });
     r.getCell("date").numFmt = "dd mmm yyyy"; r.getCell("rec").numFmt = "dd mmm yyyy hh:mm"; r.getCell("ed").numFmt = "dd mmm yyyy hh:mm";
     r.getCell("note").alignment = { wrapText: true, vertical: "top" };
@@ -1937,7 +1940,7 @@ async function buildHistoryXLSX(t) {
   list.forEach((l, i) => {
     const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus), r = ws.getRow(8 + i), isDet = l.type === "details";
     r.values = [toDate(l.date), isDet ? "Details" : "Status", isDet ? "" : (fi >= 0 ? STATUSES[fi].label : ""), isDet ? "" : (ti >= 0 ? STATUSES[ti].label : ""), l.note || "",
-      (l.changes || []).map(c => `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join("\n"), l.email || "", l.createdAt ? new Date(l.createdAt) : null, l.editedAt ? new Date(l.editedAt) : null];
+      (l.changes || []).map(c => l.full === false ? c.label : `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join(l.full === false ? ", " : "\n"), l.email || "", l.createdAt ? new Date(l.createdAt) : null, l.editedAt ? new Date(l.editedAt) : null];
     r.getCell(1).numFmt = "dd mmm yyyy"; r.getCell(8).numFmt = "dd mmm yyyy hh:mm"; r.getCell(9).numFmt = "dd mmm yyyy hh:mm";
     [5, 6].forEach(k => r.getCell(k).alignment = { wrapText: true, vertical: "top" });
     if (!isDet && ti >= 0) { r.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[ti]) } }; r.getCell(4).font = { color: { argb: argb(S_INK[ti]) } }; }
