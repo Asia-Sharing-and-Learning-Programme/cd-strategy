@@ -2321,14 +2321,14 @@ async function buildXLSX(downloader = "") {
   const ts = wb.addWorksheet("Territories", { views: [{ state: "frozen", ySplit: 1 }] });
   ts.columns = [
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, { header: "Appointment / role", key: "frole", width: 30 },
-    { header: "Focal email", key: "femail", width: 28 }, { header: "Focal phone", key: "fphone", width: 16 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
+    { header: "Focal email", key: "femail", width: 28 }, { header: "Backup email", key: "bemail", width: 28 }, { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Consultation / workshop", key: "cons", width: 44 }, { header: "Approving bodies and approval dates", key: "apps", width: 44 }, { header: "Latest approval date", key: "appr", width: 16 }, { header: "Status", key: "status", width: 24 },
     { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 }, { header: "Previous strategy cycles", key: "past", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
     const i = sIndex(t.status);
-    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", fphone: t.focalPhone || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), cons: t.consultation ? consText(t.consultation) : "Not recorded yet", apps: appsText(t.approvals), appr: toDate(t.approvalDate), past: (t.pastCycles || []).map(c => `${c.period || "No period"}${(c.approvals || []).length ? ` (${appsText(c.approvals)})` : ""}`).join("; "), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
+    const r = ts.addRow({ name: t.name, zone: zoneOf(t) === "OTHER" ? "" : zoneLabel(zoneOf(t)), cwg: cwgOf(t), focal: t.focal || "", frole: t.focalRole || "", femail: t.focalEmail || "", bemail: t.backupEmail || "", period: t.strategyPeriod || "", target: targetOf(t), cons: t.consultation ? consText(t.consultation) : "Not recorded yet", apps: appsText(t.approvals), appr: toDate(t.approvalDate), past: (t.pastCycles || []).map(c => `${c.period || "No period"}${(c.approvals || []).length ? ` (${appsText(c.approvals)})` : ""}`).join("; "), status: i >= 0 ? STATUSES[i].label : "", last: toDate(t.lastUpdated), doc: t.docLink || "", countries: (t.countries || []).join(", "), office: (t.offices || []).map(o => o.name).join("; "), hqtype: hqLabel(t), loc: t.location || "", lat: typeof t.lat === "number" ? t.lat : null, lng: typeof t.lng === "number" ? t.lng : null });
     r.getCell("last").numFmt = "dd mmm yyyy"; r.getCell("appr").numFmt = "dd mmm yyyy";
     if (i >= 0) { r.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[i]) } }; r.getCell("status").font = { color: { argb: argb(S_INK[i]) } }; }
   });
@@ -2351,26 +2351,7 @@ async function buildXLSX(downloader = "") {
   const tot = cs.addRow({ cwg: "All CWGs", ...Object.fromEntries(STATUSES.map((st, i) => ["s" + i, { formula: `SUM(${String.fromCharCode(66 + i)}2:${String.fromCharCode(66 + i)}${last})`, result: c[i] }])), total: { formula: `SUM(${String.fromCharCode(66 + STATUSES.length)}2:${String.fromCharCode(66 + STATUSES.length)}${last})`, result: total } });
   tot.font = { bold: true }; for (let k = 2; k <= 7; k++) tot.getCell(k).alignment = { horizontal: "center" };
 
-  // Log sheet
-  const ls = wb.addWorksheet("Update Log", { views: [{ state: "frozen", ySplit: 1 }] });
-  ls.columns = [
-    { header: "Date of update", key: "date", width: 15 }, { header: "Territory", key: "terr", width: 30 },
-    { header: "Previous status", key: "from", width: 44 }, { header: "New status", key: "to", width: 44 },
-    { header: "Type", key: "type", width: 12 }, { header: "Note", key: "note", width: 50 }, { header: "Details changed", key: "chg", width: 50 }, { header: "Logged by", key: "by", width: 22 }, { header: "Email", key: "email", width: 28 },
-    { header: "Recorded at", key: "rec", width: 19 }, { header: "Edited at", key: "ed", width: 19 },
-  ];
-  headStyle(ls.getRow(1));
-  [...logs].sort(logSort).forEach(l => {
-    const fi = sIndex(l.fromStatus), ti = sIndex(l.toStatus);
-    const r = ls.addRow({
-      date: toDate(l.date), terr: l.territoryName, from: fi >= 0 ? STATUSES[fi].label : "", to: ti >= 0 ? STATUSES[ti].label : "",
-      type: l.type === "details" ? "Details" : "Status", note: l.note || "", chg: (l.changes || []).map(c => l.full === false ? c.label : `${c.label}: ${c.from || "-"} -> ${c.to || "-"}`).join(l.full === false ? ", " : "\n"), email: l.email || "", by: whoName(l), rec: l.createdAt ? new Date(l.createdAt) : null, ed: l.editedAt ? new Date(l.editedAt) : null,
-    });
-    r.getCell("date").numFmt = "dd mmm yyyy"; r.getCell("rec").numFmt = "dd mmm yyyy hh:mm"; r.getCell("ed").numFmt = "dd mmm yyyy hh:mm";
-    r.getCell("note").alignment = { wrapText: true, vertical: "top" };
-    if (ti >= 0) { r.getCell("to").fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb(S_HEX[ti]) } }; r.getCell("to").font = { color: { argb: argb(S_INK[ti]) } }; }
-  });
-  ls.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ls.columnCount } };
+  // No update-history sheet: the history stays on the website (and in each territory's history Excel for editors).
   // read-only copy: watermark on every sheet, every sheet locked with a random one-off password
   const stamp = new Date().toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   ds.getCell("A11").value = `Read-only copy${downloader ? ` downloaded by ${downloader}` : ""} on ${stamp}`;
