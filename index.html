@@ -349,7 +349,8 @@
   .pc-row .k { font-size: 12px; color: var(--text-secondary); } .pc-row .v { font-weight: 600; margin-top: 2px; }
   @media (max-width: 700px) { .pc-row { grid-template-columns: 1fr 1fr; } }
   .status-guide { margin-top: 12px; font-size: 13px; } .status-guide summary { cursor: pointer; font-weight: 600; }
-  .status-guide ol { margin: 6px 0 0 18px; padding: 0; } .status-guide li { margin: 5px 0; line-height: 1.45; } .status-guide .sw { margin-right: 6px; }
+  .status-guide { border-top: 1px solid var(--border); padding-top: 10px; }
+  .status-guide ol { margin: 6px 0 0 18px; padding: 0; columns: 2 300px; column-gap: 32px; } .status-guide li { break-inside: avoid; } .status-guide li { margin: 5px 0; line-height: 1.45; } .status-guide .sw { margin-right: 6px; }
   @media (max-width: 520px) { .office-row { grid-template-columns: 1fr 1fr auto; } .office-row [data-o=name] { grid-column: 1 / -1; } }
   .chip-picker input { flex: 1; }
   .office-pin svg { display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
@@ -444,13 +445,13 @@
         <tfoot><tr><td><strong>Total</strong></td><td class="num"><strong id="sum-total">0</strong></td></tr></tfoot>
       </table>
       <div class="muted" style="font-size:12px;margin-top:10px">Click a status (here or on the chart) to filter the map.</div>
-      <details class="status-guide"><summary>What do the statuses mean?</summary>
-        <p class="muted">Each territory is at the <strong>furthest milestone it has actually reached</strong>, so it is only ever in one status.</p>
-        <ol id="status-guide-list"></ol></details>
     </div>
     <div class="card">
       <h2 id="chart-title">Territories by status</h2>
       <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+      <details class="status-guide"><summary>What do the statuses mean?</summary>
+        <p class="muted">Each territory is at the <strong>furthest milestone it has actually reached</strong>, so it is only ever in one status.</p>
+        <ol id="status-guide-list"></ol></details>
     </div>
   </section>
 
