@@ -972,11 +972,15 @@ function strategyYears(t) {
   const one = String(t.strategyPeriod || "").match(/^\s*(\d{4})\s*$/);
   return one ? [+one[1], +one[1]] : null;
 }
-function renderTimeline() {
+function timelineData(list) {
   const Y0 = new Date().getFullYear(), years = Array.from({ length: 10 }, (_, k) => Y0 + k);
-  const list = viewTerr(), withP = list.map(t => ({ t, p: strategyYears(t) })).filter(x => x.p);
+  const withP = list.map(t => ({ t, p: strategyYears(t) })).filter(x => x.p);
   const starts = years.map(y => withP.filter(x => x.p[0] === y)), ends = years.map(y => withP.filter(x => x.p[1] === y));
   const active = years.map(y => withP.filter(x => x.p[0] <= y && y <= x.p[1]).length);
+  return { years, withP, starts, ends, active };
+}
+function renderTimeline() {
+  const list = viewTerr(), { years, withP, starts, ends, active } = timelineData(list);
   $("tl-title").textContent = `Strategy implementation by year, ${years[0]}–${years[years.length - 1]}`;
   const W = 1000, H = 300, m = { t: 22, r: 8, b: 28, l: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
   const max = Math.max(3, ...starts.map(a => a.length), ...ends.map(a => a.length));
@@ -1799,6 +1803,54 @@ async function pdfMapImage(list, wMM, hMM) {
   }
   return cv.toDataURL("image/png");
 }
+// Timeline chart for the one-page PDF: same data as the dashboard, for the territories in this summary
+function pdfTimeline(doc, list, X, Y, W, H) {
+  const { years, withP, starts, ends, active } = timelineData(list);
+  const ink = [11, 11, 11], sub = [82, 81, 78], mut = [122, 121, 116];
+  const cS = hexRGB("#005fc0"), cE = hexRGB("#e04c1e");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink);
+  doc.text(pdfSafe(`Strategy implementation by year, ${years[0]}-${years[years.length - 1]}`), X, Y);
+  // legend
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...sub);
+  let lx = X; const ly = Y + 4.5;
+  [["Starting implementation", cS], ["Ending", cE]].forEach(([t, col]) => {
+    doc.setFillColor(...col); doc.roundedRect(lx, ly - 2.3, 2.6, 2.6, 0.5, 0.5, "F");
+    doc.text(t, lx + 3.6, ly); lx += 3.6 + doc.getTextWidth(t) + 5;
+  });
+  const gut = 9, cx = X + gut, cw = W - gut, top = Y + 9, base = Y + H - 12, ch = base - top;
+  const max = Math.max(3, ...starts.map(a => a.length), ...ends.map(a => a.length));
+  const step = max <= 10 ? 1 : max <= 20 ? 2 : 5, tp = Math.ceil(max / step) * step;
+  doc.setFontSize(6);
+  for (let v = 0; v <= tp; v += step) {
+    const yy = base - (v / tp) * ch;
+    if (ch / (tp / step) < 3 && v % (step * 2) && v !== tp) continue;
+    doc.setDrawColor(236, 235, 231); doc.setLineWidth(0.2); doc.line(cx, yy, cx + cw, yy);
+    doc.setTextColor(...mut); doc.text(String(v), cx - 1.5, yy + 0.8, { align: "right" });
+  }
+  const bw = cw / years.length, barW = Math.min(5, (bw - 1.6) / 2);
+  const bar = (x, n, col) => {
+    if (!n) return;
+    const h = (n / tp) * ch;
+    doc.setFillColor(...col); doc.roundedRect(x, base - h, barW, h, 0.6, 0.6, "F"); doc.rect(x, base - Math.min(h, 0.8), barW, Math.min(h, 0.8), "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6); doc.setTextColor(...ink);
+    doc.text(String(n), x + barW / 2, base - h - 1, { align: "center" });
+  };
+  years.forEach((yr, k) => {
+    const mid = cx + k * bw + bw / 2;
+    bar(mid - barW - 0.3, starts[k].length, cS); bar(mid + 0.3, ends[k].length, cE);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6); doc.setTextColor(...sub);
+    doc.text(String(yr), mid, base + 3.2, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...ink);
+    doc.text(String(active[k]), mid, base + 6.6, { align: "center" });
+  });
+  doc.setDrawColor(...mut); doc.setLineWidth(0.3); doc.line(cx, base, cx + cw, base);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); doc.setTextColor(...mut);
+  doc.text("Active", cx - 1.5, base + 6.6, { align: "right" });
+  const missing = list.length - withP.length;
+  const note = missing ? `${withP.length} of ${list.length} territories have a strategy period; ${missing} not counted yet.` : `All ${list.length} territories have a strategy period.`;
+  doc.text(doc.splitTextToSize(pdfSafe(note + " Active = strategies in implementation that year."), W).slice(0, 2), X, Y + H - 2.8);
+}
+
 async function buildPDF() {
   await loadScript("vendor/jspdf.umd.min.js");
   const { jsPDF } = window.jspdf;
@@ -1884,7 +1936,7 @@ async function buildPDF() {
   y += 3;
   const rows = sortedTerr(viewTerr());
   const cols = [["Territory", 64], ["CWG", 17], ["Focal person", 34], ["Target", 15], ["Status", 33], ["Last updated", 19]];
-  const MAP_MIN = 48;
+  const MAP_MIN = 50;   // room for the timeline + map section below
   const rh = Math.max(4.2, Math.min(6.2, (285 - y - MAP_MIN - 10) / (rows.length + 1)));
   const fs = rh < 5 ? 6.2 : 7.2;
   doc.setFillColor(244, 244, 242); doc.rect(M, y, CW, rh, "F");
@@ -1915,16 +1967,23 @@ async function buildPDF() {
   });
   doc.setDrawColor(...line); doc.line(M, y, M + CW, y);
 
-  // territory map: fills the rest of the page, zoomed to the territories in this summary
+  // implementation timeline + territory map: fill the rest of the page.
+  // Plenty of room (a zone or CWG): timeline across the full width, map below it. Tight (all territories): side by side.
   y += 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territory map", M, y);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut);
-  doc.text("Pins: territorial / regional headquarters, coloured by status. Shaded: countries covered.", PW - M, y, { align: "right" });
-  const mapTop = y + 2.5, mapH = 284 - mapTop;
+  const avail = 284 - y, stacked = avail >= 92;
+  const TL_H = stacked ? 40 : avail;
+  const tlW = stacked ? CW : 84;
+  pdfTimeline(doc, rows, M, y, tlW, TL_H);
+  let mx = M, mw = CW, my = y;
+  if (stacked) my = y + TL_H + 8; else { mx = M + tlW + 7; mw = CW - tlW - 7; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territory map", mx, my);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(stacked ? 6.5 : 5.8); doc.setTextColor(...mut);
+  doc.text(stacked ? "Pins: territorial / regional headquarters, coloured by status. Shaded: countries covered." : "Pins coloured by status. Shaded: countries covered.", mx + mw, my, { align: "right" });
+  const mapTop = my + 2.5, mapH = 284 - mapTop;
   if (mapH > 20) {
     try {
-      const img = await pdfMapImage(rows, CW, mapH);
-      if (img) { doc.addImage(img, "PNG", M, mapTop, CW, mapH); doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(M, mapTop, CW, mapH, 1.5, 1.5, "S"); }
+      const img = await pdfMapImage(rows, mw, mapH);
+      if (img) { doc.addImage(img, "PNG", mx, mapTop, mw, mapH); doc.setDrawColor(...line); doc.setLineWidth(0.3); doc.roundedRect(mx, mapTop, mw, mapH, 1.5, 1.5, "S"); }
     } catch (e) {}
   }
   doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...mut);
