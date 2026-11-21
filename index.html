@@ -572,7 +572,7 @@
     </div>
     <div id="map" class="map" role="region" aria-label="Map of territories coloured by CD Strategy status"></div>
     <div class="map-legend" id="map-legend"></div>
-    <div class="muted" style="font-size:12px;margin-top:8px">Each pin is a territory's headquarters, coloured by CD Strategy status. Hover for details and click a pin to open its update history. The zone/CWG buttons and status filters above also apply to the map.</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">Each pin is a territory's headquarters, coloured by CD Strategy status. Hover for details and click a pin to open the territory. The zone/CWG buttons and status filters above also apply to the map.</div>
   </section>
   </div>
 
@@ -588,7 +588,7 @@
           <span class="db-count" id="db-count"></span>
           <button class="small" id="db-clear">Clear filters</button>
         </div>
-        <div class="muted" style="font-size:12px;margin:2px 0 8px">Click a territory to see its update history. Click a column heading to sort.</div>
+        <div class="muted" style="font-size:12px;margin:2px 0 8px">Click a territory to see its details. Click a column heading to sort.</div>
         <div class="tblwrap"><table><thead id="db-head"></thead><tbody id="db-body"></tbody></table></div>
       </section>
     </div>
@@ -601,7 +601,7 @@
         <div class="map-key" id="mini-key"></div>
         <div class="country-chips" id="td-countries"></div>
       </section>
-      <section class="card">
+      <section class="card" id="hist-card" hidden>
         <div class="toolbar"><h2 style="margin:0">Update history</h2><span class="spacer"></span><span class="db-count" id="td-count"></span><button class="small" id="td-xlsx" hidden title="Read-only Excel of this territory's update history">Download Excel</button></div>
         <div id="log-list"><div class="muted">Loading…</div></div>
       </section>
@@ -925,6 +925,8 @@ function leadLine(cwg) {
   return `<span class="lead-line"><span class="lead-k">CWG Lead:</span> <button type="button" class="lead-link" data-lead="${esc(cwg)}" title="Contact details">${esc(l.name)}</button>${l.role ? `<span class="lead-role">, ${esc(l.role)}</span>` : ""}${l.territory && terrName(l.territory) ? ` <span class="terr-tag">${esc(terrName(l.territory))}</span>` : ""}</span>`;
 }   // territories the signed-in person may edit (status + details)
 const canEditTerr = id => !!viewer.email && myTerrs.some(m => m.id === id && m.canDetails);
+// the update history is only for admins, the territory's CWG lead and its CD focal person; everyone else sees "Details last updated"
+const canSeeHist = t => !!(t && viewer.email && (viewer.is_full_admin || (viewer.lead_cwgs || []).includes(t.cwg) || (viewer.focal_of || []).includes(t.id)));
 let territories = [];   // [{id, ...data}]
 let logs = [];          // [{id, ...data}]
 let statusFilter = null;
@@ -1846,7 +1848,8 @@ function renderDatabase() {
   cwgSel.value = opts.some(o => o[0] === curC) ? curC : "";
   const q = $("db-search").value.trim().toLowerCase(), fs = $("db-status").value, fc = cwgSel.value;
   const cnt = {}; logs.forEach(l => { cnt[l.territoryId] = (cnt[l.territoryId] || 0) + 1; });
-  const cols = [["name", "Territory"], ["focal", "Focal person"], ["target", "Target"], ["status", "Status"], ["lastUpdated", "Last updated"], ["updates", "Updates"]];
+  const showUpd = territories.some(canSeeHist);
+  const cols = [["name", "Territory"], ["focal", "Focal person"], ["target", "Target"], ["status", "Status"], ["lastUpdated", "Details last updated"], ...(showUpd ? [["updates", "Updates"]] : [])];
   const rows = territories.map(t => ({ ...t, updates: cnt[t.id] || 0 }))
     .filter(t => (!fs || t.status === fs) && matchFilter(t, fc) && (!q || [t.name, t.focal, targetOf(t), cwgOf(t)].join(" ").toLowerCase().includes(q)));
   const val = (r, k) => k === "status" ? sIndex(r[k]) : k === "order" ? terrRank(r) : (r[k] ?? "");
@@ -1866,7 +1869,7 @@ function renderDatabase() {
   const groups = cl.filter(c => rows.some(r => cwgOf(r) === c));
   const rowHtml = r => `<tr class="clickable" data-tid="${esc(r.id)}" tabindex="0">
       <td class="c-name"><a class="tname" href="#territory-${esc(r.id)}">${esc(r.name)}</a></td><td class="c-focal" data-label="Focal person">${r.focal ? esc(r.focal) : '<span class="muted">—</span>'}</td><td class="nowrap c-target" data-label="Target">${esc(targetOf(r)) || '<span class="muted">—</span>'}</td>
-      <td class="c-status">${badge(r.status)}${upd && canEditTerr(r.id) && statusFlags(r).length ? `<span class="flag-pill" title="${esc(statusFlags(r).join("\n"))}">Check</span>` : ""}</td><td class="nowrap c-last" data-label="Last updated">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td><td class="num c-upd" data-label="Updates">${r.updates}</td>
+      <td class="c-status">${badge(r.status)}${upd && canEditTerr(r.id) && statusFlags(r).length ? `<span class="flag-pill" title="${esc(statusFlags(r).join("\n"))}">Check</span>` : ""}</td><td class="nowrap c-last" data-label="Details last updated">${r.lastUpdated ? esc(fmtDate(r.lastUpdated)) : '<span class="muted">—</span>'}</td>${showUpd ? `<td class="num c-upd" data-label="Updates">${canSeeHist(r) ? r.updates : ""}</td>` : ""}
       ${upd ? `<td class="c-edit" style="text-align:right">${canEditTerr(r.id) ? `<button class="small aslp-btn" data-upd="${esc(r.id)}">Edit</button>` : ""}</td>` : ""}</tr>`;
   let lastZone = null;
   $("db-body").innerHTML = groups.map(g => {
@@ -1976,8 +1979,8 @@ function renderDetail() {
       <div><div class="k">${hqLabel(t)}</div><div class="v">${t.location ? esc(t.location) : "—"}</div></div>
       ${(t.offices || []).length ? `<div><div class="k">${t.offices.length > 1 ? "Regional / divisional / national offices" : "Regional / divisional / national office"}</div><div class="v">${t.offices.map(o => esc(o.name)).join("<br>")}</div></div>` : ""}
       <div><div class="k">Document</div><div class="v">${/^https?:\/\//i.test(t.docLink || "") ? `<a href="${esc(t.docLink)}" target="_blank" rel="noopener noreferrer">Open document ↗</a>` : "—"}</div></div>
-      <div><div class="k">Last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
-      <div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>
+      <div><div class="k">Details last updated</div><div class="v">${t.lastUpdated ? esc(fmtDate(t.lastUpdated)) : "—"}</div></div>
+      ${canSeeHist(t) ? `<div><div class="k">Updates logged</div><div class="v">${logs.filter(l => l.territoryId === t.id).length}</div></div>` : ""}
     </div>
     ${canEditTerr(t.id) && statusFlags(t).length ? `<div class="flag-box" role="note"><strong>Please check</strong><ul>${statusFlags(t).map(f => `<li>${esc(f)}</li>`).join("")}</ul><div class="muted">These are reminders only. The status stays as the focal person set it. Only people who can edit this territory see them.</div></div>` : ""}
     ${(t.pastCycles || []).length ? `<div class="past-cycles"><div class="k-title">Previous strategy cycles</div>${[...t.pastCycles].reverse().map(c => `<div class="pc-row">
@@ -1988,6 +1991,7 @@ function renderDetail() {
       <div><div class="k">New cycle started</div><div class="v">${c.archivedOn ? esc(fmtDate(c.archivedOn)) : "—"}</div></div></div>`).join("")}</div>` : ""}`;
   const te = $("td-edit"); if (te) te.addEventListener("click", () => openDialog(t.id));
   $("td-xlsx").hidden = !canEditTerr(t.id);
+  $("hist-card").hidden = !canSeeHist(t);
   renderMiniMap(t);
 
 }
@@ -2281,7 +2285,7 @@ async function buildPDF() {
   doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink); doc.text("Territories", M, y);
   y += 3;
   const rows = sortedTerr(viewTerr());
-  const cols = [["Territory", 64], ["CWG", 17], ["Focal person", 34], ["Target", 15], ["Status", 33], ["Last updated", 19]];
+  const cols = [["Territory", 64], ["CWG", 17], ["Focal person", 34], ["Target", 15], ["Status", 33], ["Details last updated", 19]];
   const MAP_MIN = 50;   // room for the timeline + map section below
   const rh = Math.max(4.2, Math.min(6.2, (285 - y - MAP_MIN - 10) / (rows.length + 1)));
   const fs = rh < 5 ? 6.2 : 7.2;
@@ -2376,7 +2380,7 @@ async function buildXLSX(downloader = "", unlocked = false) {
     { header: "Territory", key: "name", width: 32 }, { header: "Zone", key: "zone", width: 34 }, { header: "CWG", key: "cwg", width: 12 }, { header: "Focal person", key: "focal", width: 26 }, 
     { header: "Strategy period", key: "period", width: 14 },
     { header: "Target", key: "target", width: 11 }, { header: "Consultation / workshop", key: "cons", width: 44 }, { header: "Approving bodies and approval dates", key: "apps", width: 44 }, { header: "Latest approval date", key: "appr", width: 16 }, { header: "Status", key: "status", width: 24 },
-    { header: "Last updated", key: "last", width: 15 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 }, { header: "Previous strategy cycles", key: "past", width: 44 },
+    { header: "Details last updated", key: "last", width: 19 }, { header: "Document link", key: "doc", width: 40 }, { header: "Countries", key: "countries", width: 34 }, { header: "Headquarters type", key: "hqtype", width: 22 }, { header: "Headquarters (THQ / RHQ)", key: "loc", width: 30 }, { header: "HQ latitude", key: "lat", width: 11 }, { header: "HQ longitude", key: "lng", width: 11 }, { header: "Regional / divisional / national offices", key: "office", width: 44 }, { header: "Previous strategy cycles", key: "past", width: 44 },
   ];
   headStyle(ts.getRow(1));
   sortedTerr().forEach(t => {
