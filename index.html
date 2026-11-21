@@ -303,9 +303,11 @@
   .hdr-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
   .aslp-btn { background: #e04c1e; border: 1px solid #e04c1e; color: #fff; font-weight: 700; padding-left: 18px; padding-right: 18px; }
   /* Sign in: ASLP logo colours (navy with the logo's yellow underline) */
-  .aslp-btn-yellow { background: #24215f; border: 1px solid #24215f; color: #fff; font-weight: 700; padding-left: 14px; padding-right: 14px; box-shadow: inset 0 -3px 0 #f5c400; }
-  .aslp-btn-yellow:hover { background: #005fc0; border-color: #005fc0; }
-  :root[data-theme="dark"] .aslp-btn-yellow { border-color: #4a46a0; }
+  /* Sign in: logo yellow; logo blue when pressed or once signed in */
+  .aslp-btn-yellow { background: #f5c400; border: 1px solid #f5c400; color: #1a1a19; font-weight: 700; padding-left: 14px; padding-right: 14px; transition: background .15s, border-color .15s, color .15s; }
+  .aslp-btn-yellow:hover { background: #ffd21f; border-color: #ffd21f; }
+  .aslp-btn-yellow:active, .aslp-btn-yellow[aria-pressed="true"] { background: #005fc0; border-color: #005fc0; color: #fff; }
+  .aslp-btn-yellow[aria-pressed="true"]:hover { background: #0a6fd8; border-color: #0a6fd8; }
   .limitbox { border: 1px solid var(--border); border-left: 4px solid #005fc0; border-radius: 8px; padding: 9px 11px; margin: 10px 0 4px; font-size: 12.5px; background: var(--surface-0); }
   .limitbox.full { border-left-color: #e04c1e; }
   .limitbox p { margin: 6px 0 0; }
@@ -2592,6 +2594,7 @@ function renderXlsxBtn() {
 function renderAuth() {
   renderXlsxBtn();
   const b = $("auth-btn");
+  b.setAttribute("aria-pressed", viewer.email ? "true" : "false");
   b.textContent = viewer.email ? (isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
   b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in (Admins, CWG leads and CD focal persons)";
   $("tab-admin").hidden = !isEditor;
