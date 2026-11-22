@@ -2671,8 +2671,8 @@ function limitSegs(left, lim, known) {
 }
 function limitBox(st) {
   const note = `<p class="lb-note">Each link works once and expires after 1 hour. Check your spam folder before asking for another. Once signed in, you stay signed in on this device.</p></div>`;
-  if (!st) return `<div class="limitbox"><div class="lb-top"><strong>Sign-ins left this hour</strong><span class="lb-count">up to ${signinLimitN}</span></div>${limitSegs(signinLimitN, signinLimitN, false)}
-    <p>Each person can request up to <strong>${signinLimitN}</strong> sign-in emails per hour. Enter your email to see how many you have left.</p>${note}`;
+  if (!st) return `<div class="limitbox"><div class="lb-top"><strong>Sign-ins left this hour</strong><span class="lb-count">up to 5</span></div>${limitSegs(5, 5, false)}
+    <p>Admins and CWG leads can request up to <strong>5</strong> sign-in emails an hour, everyone else up to <strong>3</strong>. Enter your email to see how many you have left.</p>${note}`;
   const used = st.used || 0, lim = st.limit || signinLimitN, left = Math.max(0, lim - used);
   signinLimitN = lim;
   return `<div class="limitbox${left ? "" : " full"}"><div class="lb-top"><strong>Sign-ins left this hour</strong><span class="lb-count">${left} of ${lim} left</span></div>${limitSegs(left, lim, true)}
