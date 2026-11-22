@@ -28,6 +28,8 @@
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
 <script src="vendor/supabase.js"></script>
+<link rel="stylesheet" href="/aslp-chrome.css">
+<script src="/aslp-chrome.js" data-page="cds"></script>
 <style>
   :root {
     color-scheme: light;
@@ -486,20 +488,46 @@
   .back-strip { background: #24215f; padding: 7px 20px; }
   .back-aslp { color: #fff; font-weight: 700; font-size: 13.5px; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
   .back-aslp:hover { text-decoration: underline; }
+
+  /* ---------- matched to the main ASLP website ---------- */
+  html:root:root {
+    --surface-0: var(--ac-paper); --surface-1: var(--ac-paper-2); --border: var(--ac-line); --grid: var(--ac-line);
+    --text-primary: var(--ac-ink); --text-secondary: var(--ac-ink-2); --text-muted: var(--ac-ink-3); --text: var(--ac-ink);
+  }
+  body { font: 400 15px/1.55 var(--ac-font); }
+  button, input, select, textarea { font-family: inherit; }
+  .wrap { max-width: 1200px; padding: 0 24px; }
+  header { margin-bottom: 28px; align-items: center; }
+  h2 { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+  h3 { font-weight: 800; letter-spacing: -.01em; }
+  .card { border-color: transparent; border-radius: 20px; padding: 22px; }
+  .kpi .value { font-size: 34px; font-weight: 820; font-stretch: 108%; letter-spacing: -.02em; }
+  .pill-fill { background: var(--ac-ink); border-color: var(--ac-ink); color: var(--ac-paper); }
+  .pill-line { border-color: var(--ac-ink); color: var(--ac-ink); }
+  .pill-btn { transition: background-color .35s, color .35s, border-color .35s, transform .45s cubic-bezier(.16,1,.3,1), box-shadow .45s; }
+  .pill-fill:hover, .pill-line:hover { background: var(--ac-orange); border-color: var(--ac-orange); color: #fff; box-shadow: 0 8px 18px -10px rgba(225,75,30,.6); transform: translateY(-2px); }
+  .aslp-btn, .aslp-btn-yellow { border-radius: 999px; padding: 8px 18px; font-size: 14.5px; }
+  .tabs { border-bottom-color: var(--ac-line); margin-bottom: 22px; }
+  .tabs a { padding: 10px 16px; font-weight: 700; font-size: 15px; border-bottom-width: 3px; color: var(--ac-ink-2); }
+  .tabs a.on { color: var(--ac-ink); border-bottom-color: var(--ac-orange); }
+  .banner { border-radius: 14px; border-color: transparent; }
+  .cwg-bar label { font-weight: 700; font-size: 14px; }
+  .help-box { border: 0; border-radius: 20px; padding: 22px; }
+  .site-foot { border-top: 0; margin-top: 18px; padding-top: 0; }
+  .site-foot > div:first-child { display: none; }   /* the copyright line is in the ASLP footer */
+  .ac-hero .site-qr { margin: 0; }
+  .ac-hero .qr-ring { border-radius: 16px; }
+  @media (max-width: 900px) { .ac-hero .site-qr { display: none; } }
+  dialog { font-family: var(--ac-font); }
 </style>
 </head>
 <body>
-<div class="back-strip"><a class="back-aslp" href="/"><span aria-hidden="true">←</span> ASLP website</a></div>
 <div class="wrap">
-  <div class="logo-bar"><div class="top-right"><div class="seg theme-seg" role="group" aria-label="Theme">
-        <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
-      </div>
-      <div class="site-qr" aria-hidden="true"><div class="qr-ring"><img src="qr-site.svg" alt="" width="104" height="104"></div><div class="qr-cap">Scan to open<br>on your phone</div></div></div><img class="logo-light" src="aslp-logo-light.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"><img class="logo-dark" src="aslp-logo-dark.png" alt="Asia-Pacific Sharing &amp; Learning Programme (ASLP) — Listen. Learn. Lead. The Salvation Army" width="1600" height="464"></div>
+  <div class="ac-hero"><div class="ac-crumbs"><a href="/">Home</a><span class="sep">/</span>CD Strategies</div>
+    <div class="ac-hero-row"><div><h1 class="ac-h1">Community Development Strategies</h1>
+      <p class="ac-lede">Territory progress on Community Development Strategies across South Pacific and East Asia (SPEA) and South Asia (SASIA). Registered focal and backup persons record updates with the Update button.</p></div>
+      <div class="site-qr" aria-hidden="true"><div class="qr-ring"><img src="qr-site.svg" alt="" width="104" height="104"></div><div class="qr-cap">Scan to open<br>on your phone</div></div></div></div>
   <header>
-    <div>
-      <h1>Community Development Strategies</h1>
-      <div class="sub">Territory progress on Community Development Strategies across South Pacific and East Asia (SPEA) and South Asia (SASIA). Registered focal and backup persons record updates with the Update button.</div>
-    </div>
     <div class="hdr-actions">
       <div class="pill-row">
         <button id="dl-pdf" class="pill-btn pill-fill" title="One-page PDF: all territories, one zone or one CWG"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download one-page summary</span><span class="pb-sub">(PDF)</span></button>
@@ -994,7 +1022,7 @@ function setTheme(mode) {
   try { localStorage.setItem("cd-theme", mode); } catch (e) {}
 }
 document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeSet)));
-try { const m = localStorage.getItem("cd-theme"); if (m) setTheme(m); } catch (e) {}
+// the Light / Auto / Dark setting lives in the shared ASLP top bar
 
 /* ---------- Zones, CWGs + derived counts ---------- */
 const UNASSIGNED = "Unassigned";
@@ -1373,6 +1401,7 @@ function renderMap() {
   }
 }
 document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => setTimeout(setTiles, 0)));
+window.addEventListener("aslp-theme", () => setTimeout(setTiles, 0));
 try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", setTiles); } catch (e) {}
 
 function logSort(a, b) { return (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0); }
