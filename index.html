@@ -482,9 +482,14 @@
   .consoles { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
   .consoles-btns { display: flex; flex-wrap: wrap; gap: 8px; }
   .consoles-btns span.pill-btn { cursor: default; }
+  /* link back to the main ASLP website, on every page */
+  .back-strip { background: #24215f; padding: 7px 20px; }
+  .back-aslp { color: #fff; font-weight: 700; font-size: 13.5px; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
+  .back-aslp:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
+<div class="back-strip"><a class="back-aslp" href="/"><span aria-hidden="true">←</span> ASLP website</a></div>
 <div class="wrap">
   <div class="logo-bar"><div class="top-right"><div class="seg theme-seg" role="group" aria-label="Theme">
         <button data-theme-set="light">Light</button><button data-theme-set="auto" class="on">Auto</button><button data-theme-set="dark">Dark</button>
