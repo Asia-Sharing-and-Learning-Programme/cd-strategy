@@ -2703,7 +2703,7 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-title").textContent = signedIn ? "Signed in" : "Or email me a sign-in link instead";
   $("adlg-title").classList.toggle("alt-title", !signedIn);
   $("adlg-pin").hidden = signedIn;
-  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); } });
+  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); ASLPPin.altPrompt(db); } });
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
   $("adlg-go").hidden = false; $("adlg-code").hidden = true;
@@ -2721,10 +2721,10 @@ async function signInWithCode() {
   const token = $("a-code").value.replace(/\s+/g, "");
   if (!/^\d{6,10}$/.test(token)) { $("adlg-err").textContent = "Please type the code from the email (numbers only)."; return; }
   $("a-code-go").disabled = true; $("adlg-err").textContent = "";
-  const { error } = await db.auth.verifyOtp({ email: codeEmail, token, type: "email" });
+  const vr = await ASLPPin.verifyCode(db, codeEmail, token);
   $("a-code-go").disabled = false;
-  if (error) { $("adlg-err").textContent = /expired|invalid/i.test(error.message || "") ? "That code didn't work. It may have expired or already been used. Check you typed the newest one, or request a new link." : (error.message || "Couldn't sign in with that code."); return; }
-  $("adlg").close(); await load(); applyMode(); toast("Signed in");
+  if (!vr.ok) { $("adlg-err").textContent = vr.ok === false ? "That code didn't work. It may have expired or already been used. Check you typed the newest one, or request a new link." : (error.message || "Couldn't sign in with that code."); return; }
+  $("adlg").close(); await load(); applyMode(); toast("Signed in"); if (window.ASLPPin) ASLPPin.altPrompt(db);
 }
 $("a-code-go").addEventListener("click", signInWithCode);
 $("a-code").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); signInWithCode(); } });
@@ -2773,7 +2773,8 @@ $("adlg-form").addEventListener("submit", async e => {
   if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
   $("adlg-go").disabled = true; $("adlg-err").textContent = "";
   let d;
-  try { d = await rpc("cds_request_signin", { p_email: email }); } catch (e2) { $("adlg-go").disabled = false; $("adlg-err").textContent = errMsg(e2); return; }
+  d = await ASLPPin.sendEmail(db, email, "cds");
+  if (d && (d.reason === "error" || d.reason === "send_failed")) { $("adlg-go").disabled = false; $("adlg-err").textContent = /rate limit/i.test(d.message || "") ? "Too many sign-in emails were sent in the last hour. Please wait and try again, or sign in with your PIN." : "Couldn't send the sign-in email. Please try again."; return; }
   if (d && d.limit != null) { signinState = d; renderSigninLimit(); }
   if (!d || !d.ok) {
     $("adlg-go").disabled = !!(d && d.reason === "limit");
@@ -2782,17 +2783,8 @@ $("adlg-form").addEventListener("submit", async e => {
       : `The hourly sign-in limit is reached. Please try again at about ${esc(hhmm(d && d.next_free_at))}. The most recent link already in your inbox may still work.`;
     return;
   }
-  const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-  if (error) {
-    $("adlg-go").disabled = false;
-    const m = String(error.message || "");
-    $("adlg-err").textContent = /rate limit/i.test(m) ? "Too many sign-in emails were sent in the last hour. Please wait and try again. The most recent link already in your inbox may still work."
-      : /not authorized|not allowed/i.test(m) ? "Sign-in emails can't be sent to this address yet. Please contact the SWI-SAID Asia Programme Manager."
-      : (m || "Couldn't send the sign-in email.");
-    return;
-  }
   $("adlg-in").hidden = true; $("adlg-go").hidden = true; codeEmail = email; $("adlg-code").hidden = false; $("a-code").value = "";
-  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${esc(email)}.</strong></p><p>Open the newest email (check spam too). Either click its link and then <strong>Finish signing in</strong>, or type its code below.</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>${limitBox(signinState)}`;
+  $("adlg-sent").hidden = false; $("adlg-sent").innerHTML = `<p><strong>Sign-in link sent to ${d.via_alt ? `your Gmail, ${esc(d.to)}` : esc(email)}.</strong></p><p>Open the newest email (check spam too). Either click its link and then <strong>Finish signing in</strong>, or type its code below.</p><p>Please don't request another link unless it hasn't arrived after a few minutes.</p>${limitBox(signinState)}`;
 });
 
 applyMode();
@@ -2918,6 +2910,7 @@ const HAND = window.ASLPTour ? ASLPTour.handoff() : null;
     };
   }
   if (HAND && viewer.email) setTimeout(() => cdsTour(HAND.then), 500);
+  else if (viewer.email && window.ASLPPin) ASLPPin.altPrompt(db);
   setInterval(() => load(true), 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(true); });
 })();
