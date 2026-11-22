@@ -31,6 +31,7 @@
 <link rel="stylesheet" href="/aslp-chrome.css">
 <script src="/aslp-chrome.js" data-page="cds"></script>
 <script src="/aslp-tour.js"></script>
+<script src="/aslp-pin.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -520,6 +521,7 @@
   .ac-hero .qr-ring { border-radius: 16px; }
   @media (max-width: 900px) { .ac-hero .site-qr { display: none; } }
   dialog { font-family: var(--ac-font); }
+  #adlg-title.alt-title { font-size: 15px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
   body.view-only #upd-btn, body.view-only #view-admin button, body.view-only .log-actions button { opacity: .45; cursor: not-allowed; }
 </style>
 </head>
@@ -862,6 +864,11 @@
   </form>
 </dialog>
 <dialog id="adlg">
+  <div class="dlg-body" id="adlg-pin" style="padding-bottom:0">
+    <h3>Sign in</h3>
+    <div class="muted help" style="margin-top:6px"><p>Sign in with your email and PIN. It's the same sign-in as the ASLP website and the Calendar.</p></div>
+    <div id="pin-box"></div>
+  </div>
   <form id="adlg-form" method="dialog" novalidate>
     <div class="dlg-body">
       <h3 id="adlg-title">Sign in</h3>
@@ -2693,7 +2700,10 @@ $("auth-btn").addEventListener("click", () => {
     + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
     + (!isEditor && !focalNames.length ? `<li>This email has no access on this site yet. Please contact the SWI-SAID Asia Programme Manager.</li>` : "")
     + `</ul>` : "";
-  $("adlg-title").textContent = signedIn ? "Signed in" : "Sign in";
+  $("adlg-title").textContent = signedIn ? "Signed in" : "Or email me a sign-in link instead";
+  $("adlg-title").classList.toggle("alt-title", !signedIn);
+  $("adlg-pin").hidden = signedIn;
+  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); } });
   $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
   $("adlg-go").disabled = false;
   $("adlg-go").hidden = false; $("adlg-code").hidden = true;
