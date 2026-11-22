@@ -965,6 +965,7 @@ function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add
 let summaryMode = false;
 let currentView = "dashboard", detailId = null;
 function applyMode() {
+  editing = false;
   const h = location.hash;
   detailId = h.startsWith("#territory-") ? h.slice("#territory-".length) : null;
   currentView = h === "#admin" ? (isEditor ? "admin" : "dashboard") : (h === "#database" || detailId) ? "database" : "dashboard";
@@ -2584,7 +2585,10 @@ function renderBin() {
     catch (e) { btn.disabled = false; toast(errMsg(e)); }
   }));
 }
-async function load() {
+// background refreshes (every minute, or when the tab comes back) update the data but don't redraw a form someone is typing in
+let editing = false;
+document.addEventListener("input", e => { if (e.target.closest("#view-admin, dialog")) editing = true; }, true);
+async function load(background) {
   try {
     const d = await rpc("get_dashboard");
     territories = d.territories || [];
@@ -2601,6 +2605,7 @@ async function load() {
       if (isFullAdmin) { try { downloadsLog = await rpc("admin_get_downloads", { p_limit: 200 }) || []; } catch (e) { downloadsLog = []; } } else downloadsLog = [];
       try { binLog = await rpc("admin_get_bin") || []; } catch (e) { binLog = []; }
     } else binLog = [];
+    if (background && (editing || document.querySelector("dialog[open]"))) return;
     renderDownloads(); renderBin();
     applyMode(); renderAuth();
     $("foot-sync").textContent = "Data refreshed " + new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -2733,8 +2738,11 @@ applyMode();
   const cameFromLink = hashParams.has("access_token");
   const qp = new URLSearchParams(location.search), tokenHash = qp.get("token_hash"), otpType = qp.get("type") || "email";
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: "implicit", persistSession: true, detectSessionInUrl: true, autoRefreshToken: true } });
-  db.auth.onAuthStateChange((evt) => {
-    if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") load();
+  db.auth.onAuthStateChange((evt, ses) => {
+    if (evt !== "SIGNED_IN" && evt !== "SIGNED_OUT") return;
+    const em = evt === "SIGNED_OUT" ? "" : String((ses && ses.user && ses.user.email) || "").toLowerCase();
+    if (em === String(viewer.email || "").toLowerCase()) return load(true);   // same person (the tab came back into view): quiet refresh
+    setTimeout(load, 0);
   });
   try { await db.auth.getSession(); } catch (e) {}
   if (cameFromLink || linkError || location.search.includes("code=")) history.replaceState(null, "", location.pathname + (cameFromLink ? "#admin" : ""));
@@ -2753,8 +2761,8 @@ applyMode();
       $("fdlg").close(); await load(); applyMode(); toast("Signed in");
     };
   }
-  setInterval(load, 60000);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
+  setInterval(() => load(true), 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(true); });
 })();
 </script>
 </body>
