@@ -519,6 +519,7 @@
   .ac-hero .qr-ring { border-radius: 16px; }
   @media (max-width: 900px) { .ac-hero .site-qr { display: none; } }
   dialog { font-family: var(--ac-font); }
+  body.view-only #upd-btn, body.view-only #view-admin button, body.view-only .log-actions button { opacity: .45; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -975,6 +976,23 @@ let names = {};
 
 const $ = id => document.getElementById(id);
 let publicMode = false, isEditor = false, isFullAdmin = false, loadedOnce = false;
+// view-only accounts see what admins see, but every change is switched off (the database refuses them too)
+const RO_ZONE = "#view-admin, #dlg, #ldlg, #ddlg, .log-actions, #upd-btn";
+document.addEventListener("click", e => {
+  if (!viewer.view_only) return;
+  const el = e.target.closest("button, input, select, textarea, label, a"); if (!el || !el.closest(RO_ZONE)) return;
+  if (el.matches("a[href]") && !el.closest(".log-actions")) return;
+  if (el.matches("input[readonly], textarea[readonly]")) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (typeof toast === "function") toast("View only: this account can't change anything");
+}, true);
+["keydown", "paste", "drop", "change", "input", "submit"].forEach(k => document.addEventListener(k, e => {
+  if (viewer.view_only && e.target.closest && e.target.closest(RO_ZONE)) { if (k === "keydown" && /^(Tab|Arrow|Shift|Control|Meta|Alt|Escape)/.test(e.key)) return; e.preventDefault(); e.stopImmediatePropagation(); }
+}, true));
+new MutationObserver(() => { if (!viewer.view_only) return;
+  document.querySelectorAll("#view-admin input, #view-admin textarea, #view-admin select").forEach(el => { if (el.dataset.ro) return; el.dataset.ro = 1;
+    if (el.tagName === "TEXTAREA" || /^(text|email|url|date|search|number|tel|)$/.test(el.type)) el.readOnly = true; else el.disabled = true; });
+}).observe(document.documentElement, { childList: true, subtree: true });
 // CWG leads are admins only for their own CWG's territories
 const canAdminTerr = id => isFullAdmin || (isEditor && (viewer.lead_cwgs || []).includes((territories.find(x => x.id === id) || {}).cwg));
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -2626,6 +2644,7 @@ async function load(background) {
     viewer = d.viewer || viewer;
     isEditor = !!viewer.is_coordinator;
     isFullAdmin = !!viewer.is_full_admin;
+    document.body.classList.toggle("view-only", !!viewer.view_only);
     if (viewer.email) { try { myTerrs = await rpc("get_my_territories", { p_email: viewer.email }) || []; } catch (e) { myTerrs = []; } } else myTerrs = [];
     loadedOnce = true;
     banner("");
@@ -2653,7 +2672,7 @@ function renderAuth() {
   renderXlsxBtn();
   const b = $("auth-btn");
   b.setAttribute("aria-pressed", viewer.email ? "true" : "false");
-  b.textContent = viewer.email ? (isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
+  b.textContent = viewer.email ? (viewer.view_only ? "Signed in · View only" : isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
   b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in (Admins, CWG leads and CD focal persons)";
   $("tab-admin").hidden = !isEditor;
 }
@@ -2663,7 +2682,8 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-out").hidden = !signedIn;
   const focalNames = (viewer.focal_of || []).map(id => (territories.find(x => x.id === id) || { name: id }).name);
   $("adlg-out").innerHTML = signedIn ? `<div style="margin-top:8px">Signed in as <strong>${esc(viewer.email)}</strong>.</div><ul style="margin:8px 0 0 18px;padding:0;font-size:13px;line-height:1.6">`
-    + (isEditor ? `<li><strong>${isFullAdmin ? "Admin" : "CWG lead"}</strong> (${esc(viewer.role || "admin")})${isFullAdmin ? " — full access to all territories" : ` — for ${esc((viewer.lead_cwgs || []).join(" and "))} territories only`}. Open the <a href="#admin" id="go-admin">Admin</a> tab.</li>` : "")
+    + (viewer.view_only ? `<li><strong>View only</strong>: you see everything an admin sees, including the <a href="#admin" id="go-admin">Admin</a> tab, but you can't change anything.</li>` : "")
+    + (isEditor && !viewer.view_only ? `<li><strong>${isFullAdmin ? "Admin" : "CWG lead"}</strong> (${esc(viewer.role || "admin")})${isFullAdmin ? " — full access to all territories" : ` — for ${esc((viewer.lead_cwgs || []).join(" and "))} territories only`}. Open the <a href="#admin" id="go-admin">Admin</a> tab.</li>` : "")
     + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
     + (!isEditor && !focalNames.length ? `<li>This email has no access on this site yet. Please contact the SWI-SAID Asia Programme Manager.</li>` : "")
     + `</ul>` : "";
