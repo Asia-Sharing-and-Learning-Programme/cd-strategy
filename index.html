@@ -30,6 +30,7 @@
 <script src="vendor/supabase.js"></script>
 <link rel="stylesheet" href="/aslp-chrome.css">
 <script src="/aslp-chrome.js" data-page="cds"></script>
+<script src="/aslp-tour.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -538,6 +539,7 @@
       <div class="hdr-right">
         <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (Admins, CWG leads and CD focal persons)">Sign in</button>
         <button id="upd-btn" class="small aslp-btn">Update</button>
+        <button id="tour-btn" class="small" hidden title="Try the site step by step. Nothing is saved.">Test run</button>
       </div>
     </div>
   </header>
@@ -980,6 +982,7 @@ let publicMode = false, isEditor = false, isFullAdmin = false, loadedOnce = fals
 const RO_ZONE = "#view-admin, #dlg, #ldlg, #ddlg, .log-actions, #upd-btn";
 document.addEventListener("click", e => {
   if (!viewer.view_only) return;
+  if (e.target.closest(".tour, .tour-bar")) return;
   const el = e.target.closest("button, input, select, textarea, label, a"); if (!el || !el.closest(RO_ZONE)) return;
   if (el.matches("a[href]") && !el.closest(".log-actions")) return;
   if (el.matches("input[readonly], textarea[readonly]")) return;
@@ -2675,7 +2678,9 @@ function renderAuth() {
   b.textContent = viewer.email ? (viewer.view_only ? "Signed in · View only" : isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
   b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in (Admins, CWG leads and CD focal persons)";
   $("tab-admin").hidden = !isEditor;
+  $("tour-btn").hidden = !viewer.email;
 }
+$("tour-btn").addEventListener("click", () => cdsTour(""));
 $("auth-btn").addEventListener("click", () => {
   const signedIn = !!viewer.email;
   $("adlg-in").hidden = signedIn; $("adlg-sent").hidden = true; $("adlg-err").textContent = "";
@@ -2780,6 +2785,97 @@ $("adlg-form").addEventListener("submit", async e => {
 });
 
 applyMode();
+/* ---------- guided test run: the real CD Strategies pages, in practice mode (nothing is saved) ---------- */
+const P = { on: false };
+function practiceOn() {
+  if (P.on) return; P.on = true; P.rpc = rpc; P.status = {}; P.logs = [];
+  const WRITES = /^(submit_|start_new_cycle|admin_(set|edit|delete|restore)_)/;
+  rpc = async (fn, args) => {
+    args = args || {};
+    if (WRITES.test(fn)) {
+      await new Promise(r => setTimeout(r, 400));
+      if (fn === "submit_status_update") {
+        const t = territories.find(x => x.id === args.p_territory) || {};
+        P.status[args.p_territory] = { status: args.p_status, date: args.p_date };
+        P.logs.unshift({ id: "tr-" + Date.now(), territoryId: t.id, territoryName: t.name, type: "status", fromStatus: t.status, toStatus: args.p_status, date: args.p_date,
+          note: (args.p_note || "") + " (test run: not saved)", full: true, changes: [], email: viewer.email, createdAt: Date.now() });
+      }
+      return { ok: true, changed: true };
+    }
+    const d = await P.rpc(fn, args);
+    if (fn === "get_dashboard" && P.on && d) {
+      (d.territories || []).forEach(t => { const s = P.status[t.id]; if (s) { t.status = s.status; t.lastUpdated = s.date; } });
+      d.log = [...P.logs, ...(d.log || [])];
+    }
+    return d;
+  };
+  document.documentElement.classList.add("practicing");
+}
+function practiceOff() {
+  if (!P.on) return; P.on = false; rpc = P.rpc;
+  document.querySelectorAll("dialog[open]").forEach(d => d.close());
+  document.documentElement.classList.remove("practicing");
+  load();
+}
+const tourSleep = ms => new Promise(r => setTimeout(r, ms));
+const goView = async h => { if (location.hash !== h) { location.hash = h; await tourSleep(500); } };
+function cdsSteps() {
+  const ro = !!viewer.view_only, mine = myTerrs.filter(m => m.canDetails), canUpd = !ro && mine.length > 0;
+  const who = ro ? "a view-only account" : isFullAdmin ? "an admin" : isEditor ? `the ${(viewer.lead_cwgs || []).join(" and ")} CWG lead` : isFocalViewer() ? "a CD focal person" : "signed in";
+  const S = [];
+  S.push({ before: () => goView(""), title: "Welcome to CD Strategies", text: `This is the real CD Strategies website. You're signed in as <b>${esc(who)}</b>. ` +
+    (ro ? "You see everything an admin sees, but you can't change anything." : isFullAdmin ? "You can update every territory's CD Strategy and manage who has access." :
+     isEditor ? "You can update the CD Strategies of your CWG's territories, and their focal and backup persons." : canUpd ? `You can update the CD Strategy of ${esc(mine.map(m => m.name).join(" and "))}.` : "You can look at every territory's progress.") +
+    " We'll try it together. Nothing you do during the test run is saved." });
+  S.push({ el: "#cwg-pills", title: "Zone or CWG", text: "Show the whole Asia-Pacific, one zone, or one CWG. Everything on the page follows your choice. Try one now." });
+  S.push({ el: ".kpis", title: "At a glance", text: "How many territories are tracked, how many CD Strategies are approved, and how many are still on the way." });
+  S.push({ el: "#chart", skipIfMissing: true, title: "Territories by status", text: "Each bar is a status, from not started to approved. Select a bar to see which territories are there." });
+  S.push({ el: "#map", skipIfMissing: true, title: "The map", text: "Each headquarters, coloured by its CD Strategy status. Select one to see its details." });
+  if (canUpd) {
+    const T = (mine.find(m => m.id === detailId) || mine[0]);
+    S.push({ el: "#upd-btn", wait: "click", delay: 700, title: "Update a CD Strategy", text: "Select <b>Update</b>. This is where you record progress, any time something changes." });
+    S.push({ el: "#terr-pick", skipIfMissing: true, before: async () => { await tourSleep(300); const s = $("f-terr"); if (s && !s.value && !$("terr-pick").hidden) { s.value = T.id; s.dispatchEvent(new Event("change", { bubbles: true })); } },
+      title: "Choose the territory", text: `You look after ${mine.length} territories, so first choose one. We've picked <b>${esc(T.name)}</b>.` });
+    S.push({ el: () => !$("step-0").hidden && findStepSave(), skipIfMissing: true, wait: "click", delay: 900, title: "Continue", text: "Select <b>Continue</b>." });
+    S.push({ el: "#f-status", title: "Status", text: "Choose where the CD Strategy stands now, from <b>Not started</b> to <b>Approved</b> and beyond." });
+    S.push({ el: "#f-status-def", skipIfMissing: true, title: "Not sure which one?", text: "This explains when to use the status you picked, and what moves it to the next one." });
+    S.push({ el: "#f-date", title: "Date of update", text: "The date things changed. It's today unless you change it." });
+    S.push({ el: "#f-note", before: () => ASLPTour.fillIn("#f-note", "Draft shared with THQ for comment."), title: "A short note", text: "Say what happened, in a line. We've typed a sample. Notes show in the territory's history." });
+    S.push({ el: "#dlg-save", wait: "click", delay: 1200, title: "Save the status", text: "Select <b>Save status</b>. In this test run nothing is saved." });
+    S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-focal").closest(".two") : null, skipIfMissing: true, title: "CD Strategy details",
+      text: "Next come the details: the focal person, their role and contacts. Only signed-in people with access see the emails and phone." });
+    S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-period-from").closest(".two") : null, skipIfMissing: true, title: "Strategy period", text: "The years the CD Strategy covers." });
+    S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-approvals").closest(".field") : null, skipIfMissing: true, title: "Approving bodies", text: "Add each body that approves the CD Strategy, and the date it did. Leave the date empty until it's approved." });
+    S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-doc") : null, skipIfMissing: true, title: "Document link", text: "Link to the CD Strategy document, e.g. on SharePoint or Google Drive." });
+    S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-loc").closest(".field") : null, skipIfMissing: true, title: "Where the territory works", text: "Countries, headquarters and offices. These also show on the ASLP website and the map." });
+    S.push({ el: () => !$("step-2").hidden ? $("dlg-save") : null, skipIfMissing: true, wait: "click", delay: 1200, title: "Save the details", text: "Select <b>Save details</b> (or <b>Done</b>). In this test run nothing is saved." });
+    S.push({ before: () => { document.querySelectorAll("dialog[open]").forEach(d => d.close()); return goView(""); }, el: "#chart", skipIfMissing: true, title: "It shows straight away",
+      text: `In this test run, <b>${esc(T.name)}</b> now shows with the status you chose. In a real update, everyone sees it straight away, on this website and the ASLP website.` });
+  }
+  S.push({ el: "#tab-database", wait: "click", delay: 700, title: "The Database", text: "Select <b>Database</b> to see every territory in a table." });
+  S.push({ el: "#db-search", title: "Search and filter", text: "Search by territory or focal person, or filter by CWG and status." });
+  S.push({ el: () => document.querySelector("#db-body tr.clickable"), skipIfMissing: true, wait: "click", delay: 900, title: "Open a territory", text: "Select a territory to see its details and its full update history." });
+  S.push({ el: "#db-detail", skipIfMissing: true, title: "Its details and history", text: (isEditor || isFocalViewer() ? "As someone who looks after this territory, you see its private details and every update." : "You see its details and updates.") + (canUpd ? " Your test-run update shows here too." : "") });
+  if (isEditor) {
+    S.push({ before: () => goView("#database"), el: "#tab-admin", wait: "click", delay: 700, title: "Admin", text: ro ? "Select <b>Admin</b>. You can see everything there, but nothing can be changed." : "Select <b>Admin</b>. This is where you manage people and access." });
+    S.push({ el: "#access-card", skipIfMissing: true, title: isFullAdmin ? "Admins and CWG leads" : "Your CWG", text: isFullAdmin ? "Who can sign in as an admin or CWG lead. One email per line." : "Who leads your CWG." });
+    S.push({ el: "#leads-card", skipIfMissing: true, title: "CWG lead details", text: "The lead names and roles shown publicly next to each CWG. Emails are never shown." });
+    S.push({ el: "#contacts-card", skipIfMissing: true, title: "Focal and backup persons", text: "Each territory's focal person (updates everything) and backup person (updates the status). Change them here when people move." });
+    S.push({ el: "#dl-card", skipIfMissing: true, title: "Excel downloads", text: "Everyone who downloads the Excel file is listed here." });
+    S.push({ el: "#bin-card", skipIfMissing: true, title: "Recycle bin", text: "Deleted or edited history entries are kept here, so you can put them back." });
+  }
+  S.push({ before: () => goView(""), el: "#dl-pdf", title: "Share the progress", text: "Download a one-page PDF (all territories, a zone or a CWG), an Excel file, or the link to this website." });
+  S.push({ el: "#tour-btn", skipIfMissing: true, title: "Take the test run again", text: "You can come back to this test run any time from here." });
+  return S.map(s => ({ group: "CD Strategies", ...s }));
+}
+const findStepSave = () => $("dlg-save");
+function cdsTour(then) {
+  if (!window.ASLPTour || !viewer.email) return;
+  const st = cdsSteps(); if (then) st[st.length - 1].nextLabel = "Back to my console";
+  ASLPTour.run(st, { practiceOn, practiceOff, then: then || "" });
+}
+
+const HAND = window.ASLPTour ? ASLPTour.handoff() : null;
 (async () => {
   if (!window.supabase) { banner("The page couldn't load its data library. Please check your connection and reload."); return; }
   const hashParams = new URLSearchParams(location.hash.slice(1));
@@ -2810,6 +2906,7 @@ applyMode();
       $("fdlg").close(); await load(); applyMode(); toast("Signed in");
     };
   }
+  if (HAND && viewer.email) setTimeout(() => cdsTour(HAND.then), 500);
   setInterval(() => load(true), 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(true); });
 })();
