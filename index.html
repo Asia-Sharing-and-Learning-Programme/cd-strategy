@@ -1784,8 +1784,9 @@ function renderAccess() {
   if (!show || card.dataset.editing === "1") return;
   const leadOnly = accessCfg.scope === "cwg";
   const cl = leadOnly ? (accessCfg.leadCwgs || []) : cwgList().filter(c => c !== UNASSIGNED);
-  $("acc-coord").closest(".field").hidden = leadOnly; $("acc-other").closest(".field").hidden = leadOnly;
-  $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG lead` : "Admins";
+  const hideAdmins = leadOnly || !!viewer.view_only;   // view-only accounts don't see who the admins are
+  $("acc-coord").closest(".field").hidden = hideAdmins; $("acc-other").closest(".field").hidden = hideAdmins;
+  $("acc-title").textContent = leadOnly ? `${cl.join(" & ")} CWG lead` : viewer.view_only ? "CWG leads" : "Admins";
   $("acc-help").innerHTML = leadOnly
     ? `<p>As a CWG lead, you can see who leads <strong>${esc(cl.join(" and "))}</strong>.</p><p>Below, you can manage your territories' focal and backup persons.</p><p>Only programme coordinators and other admins can change who has admin access.</p>`
     : `<p>Everyone listed here can <strong>Sign in → Admin</strong>.</p><ul><li><strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. Enter one email per line, as many as needed.</li><li>Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories. You can also add an <strong>alternative email</strong> for the lead (e.g. a second work address); both can sign in as that CWG lead.</li></ul><p>You can't remove your own email.</p>`
@@ -2858,7 +2859,7 @@ function cdsSteps() {
   S.push({ el: "#db-detail", skipIfMissing: true, title: "Its details and history", text: (isEditor || isFocalViewer() ? "As someone who looks after this territory, you see its private details and every update." : "You see its details and updates.") + (canUpd ? " Your test-run update shows here too." : "") });
   if (isEditor) {
     S.push({ before: () => goView("#database"), el: "#tab-admin", wait: "click", delay: 700, title: "Admin", text: ro ? "Select <b>Admin</b>. You can see everything there, but nothing can be changed." : "Select <b>Admin</b>. This is where you manage people and access." });
-    S.push({ el: "#access-card", skipIfMissing: true, title: isFullAdmin ? "Admins and CWG leads" : "Your CWG", text: isFullAdmin ? "Who can sign in as an admin or CWG lead. One email per line." : "Who leads your CWG." });
+    S.push({ el: "#access-card", skipIfMissing: true, title: ro ? "CWG leads" : isFullAdmin ? "Admins and CWG leads" : "Your CWG", text: ro ? "Who leads each CWG." : isFullAdmin ? "Who can sign in as an admin or CWG lead. One email per line." : "Who leads your CWG." });
     S.push({ el: "#leads-card", skipIfMissing: true, title: "CWG lead details", text: "The lead names and roles shown publicly next to each CWG. Emails are never shown." });
     S.push({ el: "#contacts-card", skipIfMissing: true, title: "Focal and backup persons", text: "Each territory's focal person (updates everything) and backup person (updates the status). Change them here when people move." });
     S.push({ el: "#dl-card", skipIfMissing: true, title: "Excel downloads", text: "Everyone who downloads the Excel file is listed here." });
