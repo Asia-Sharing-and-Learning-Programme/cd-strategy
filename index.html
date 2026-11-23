@@ -2698,7 +2698,7 @@ function renderAuth() {
   renderXlsxBtn();
   const b = $("auth-btn");
   b.setAttribute("aria-pressed", viewer.email ? "true" : "false");
-  b.textContent = viewer.email ? (viewer.view_only ? "Signed in · View only" : isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : "Signed in") : "Sign in";
+  b.textContent = viewer.email ? (viewer.view_only ? "Signed in · View only" : isFullAdmin ? "Signed in · Admin" : isEditor ? "Signed in · CWG lead" : isFocalViewer() ? "Signed in · Focal Person" : viewer.member_only ? "Signed in · CWG member" : "Signed in") : "Sign in";
   b.title = viewer.email ? `Signed in as ${viewer.email}` : "Sign in (Admins, CWG leads and CD focal persons)";
   $("tab-admin").hidden = !isEditor;
   $("tour-btn").hidden = !viewer.email;
