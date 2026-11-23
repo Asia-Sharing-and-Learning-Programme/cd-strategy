@@ -539,7 +539,7 @@
         <button id="dl-xlsx" class="pill-btn pill-line pill-small" title="Excel workbook"><svg class="pb-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="dl-xlsx-label">Download Excel</span></button>
       </div>
       <div class="hdr-right">
-        <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (Admins, CWG leads and CD focal persons)">Sign in</button>
+        <button id="auth-btn" class="small aslp-btn-yellow" title="Sign in (admins, CWG leads and view-only accounts)">Sign in</button>
         <button id="upd-btn" class="small aslp-btn">Update</button>
         <button id="tour-btn" class="small" hidden title="Try the site step by step. Nothing is saved.">Test run</button>
       </div>
@@ -704,7 +704,7 @@
       <div class="muted" id="dlg-current"></div>
       <div class="dlg-tabs" role="tablist" aria-label="What to update" hidden><button type="button" role="tab" data-st="1">Status update</button><button type="button" role="tab" data-st="2">CD Strategy details</button></div>
       <div id="step-0">
-        <div class="field"><label for="f-email">Your registered email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
+        <div class="field"><label for="f-email">Your Gmail</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="yourname@gmail.com"></div>
         <div class="field" id="terr-pick" hidden><label for="f-terr">Territory</label><select id="f-terr"></select></div>
         <div class="hint help"><p><strong>Who can update</strong></p><ul><li><strong>Focal person:</strong> status and CD Strategy details</li><li><strong>Backup person:</strong> status only</li><li><strong>CWG leads and programme coordinators:</strong> their territories</li></ul><p>To edit CD Strategy details, <strong>sign in first</strong> (Sign in → CD Focal Person or Admin).</p><p>Your email is recorded with every update.</p></div>
       </div>
@@ -727,11 +727,8 @@
             <div class="field"><label for="f-focal">Focal person</label><input type="text" id="f-focal" maxlength="120"></div>
             <div class="field"><label for="f-frole">Appointment / role</label><input type="text" id="f-frole" maxlength="120" placeholder="e.g. Territorial Social Services Secretary"></div>
           </div>
-          <div class="two">
-            <div class="field"><label for="f-femail">Focal person email</label><input type="email" id="f-femail" maxlength="200"></div>
-            <div class="field"><label for="f-fphone">Focal person phone</label><input type="text" id="f-fphone" maxlength="40"></div>
-          </div>
-          <div class="field"><label for="f-bemail">Backup person email <span class="muted" style="font-weight:400">(can update the status, and the approving bodies once approved)</span></label><input type="email" id="f-bemail" maxlength="200"></div>
+          <div class="field" hidden><label for="f-femail">Focal person email</label><input type="email" id="f-femail" maxlength="200"></div>
+          <div class="field" hidden><label for="f-bemail">Backup person email <span class="muted" style="font-weight:400">(can update the status, and the approving bodies once approved)</span></label><input type="email" id="f-bemail" maxlength="200"></div>
           <input type="hidden" id="f-period">
           <div class="two">
             <div class="field"><label for="f-period-from">Strategy period: from</label><select id="f-period-from"></select></div>
@@ -853,7 +850,7 @@
       <h3>Download Excel</h3>
       <div class="muted" style="font-size:13px;margin-top:4px" id="xdlg-intro"></div>
       <div class="xlsx-callout" id="xdlg-note"></div>
-      <div class="field"><label for="x-email">Your email</label><input type="email" id="x-email" autocomplete="email" maxlength="200" placeholder="name@salvationarmy.org"></div>
+      <div class="field"><label for="x-email">Your Gmail</label><input type="email" id="x-email" autocomplete="email" maxlength="200" placeholder="yourname@gmail.com"></div>
       <div class="err" id="xdlg-err"></div>
     </div>
     <div class="dlg-actions">
@@ -874,7 +871,7 @@
       <h3 id="adlg-title">Sign in</h3>
       <div id="adlg-in">
         <div class="muted help" style="margin-top:6px"><p>Enter the email the ASLP team registered for you. We'll email you a sign-in link.</p><p>What you can see and change depends on the access the admins gave you (Admin, CWG lead or CD focal person).</p><p>Backup persons don't need to sign in. They update the status with the <strong>Update</strong> button.</p></div>
-        <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
+        <div class="field"><label for="a-email">Your Gmail</label><input type="email" id="a-email" autocomplete="email" placeholder="yourname@gmail.com"></div>
         <div id="adlg-limit"></div>
       </div>
       <div id="adlg-sent" class="ok-note" hidden></div>
@@ -896,7 +893,7 @@
 </dialog>
 <dialog id="sdlg" class="mini-dlg" aria-labelledby="sdlg-title">
   <h3 id="sdlg-title">Share this website</h3>
-  <p class="muted">Anyone with the link can see the public dashboard. Focal persons, backup persons, CWG leads and admins use the same link to update or sign in.</p>
+  <p class="muted">Anyone with the link can see the public dashboard. Admins and CWG leads use the same link to update it, signing in with their Gmail.</p>
   <div class="copy-row"><input type="text" id="sdlg-url" readonly aria-label="Website link"><button type="button" class="small aslp-btn" data-copy="sdlg-url">Copy link</button></div>
   <div id="sdlg-page" hidden><div class="muted" style="font-size:12px;margin:10px 0 4px">Link to the page you're on now:</div>
     <div class="copy-row"><input type="text" id="sdlg-page-url" readonly aria-label="Link to this page"><button type="button" class="small" data-copy="sdlg-page-url">Copy</button></div></div>
@@ -1476,10 +1473,10 @@ async function resolveNames() {}
 
 /* ---------- update dialog: email → status → details ---------- */
 const DETAIL_FIELDS = [
-  ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["focalPhone", "Focal person phone", "f-fphone"], ["backupEmail", "Backup person email", "f-bemail"],
+  ["focal", "Focal person", "f-focal"], ["focalRole", "Focal person appointment/role", "f-frole"], ["focalEmail", "Focal person email", "f-femail"], ["backupEmail", "Backup person email", "f-bemail"],
   ["strategyPeriod", "Strategy period", "f-period"], ["target", "Target", "f-target"], ["docLink", "Document link", "f-doc"], ["cwg", "CWG", "f-cwg"], ["location", "Headquarters", "f-loc"], ["lat", "Latitude", "f-lat"], ["lng", "Longitude", "f-lng"],
 ];
-const PRIVATE_FIELDS = ["focalEmail", "focalPhone", "backupEmail"];
+const PRIVATE_FIELDS = ["focalEmail", "backupEmail"];
 const normEmail = e => String(e || "").trim().toLowerCase();
 const isRegion = t => /\bregion$/i.test(String(t && t.name || "").trim());
 const hqLabel = t => isRegion(t) ? "Regional Headquarters" : "Territorial Headquarters";
@@ -1647,7 +1644,7 @@ function setStep(n) {
       loadWorld().then(() => { $("country-options").innerHTML = worldNames.map(n => `<option value="${esc(n)}">`).join(""); }).catch(() => {});
       $("f-target-wrap").style.display = sIndex(t.status) >= 4 ? "none" : "";
       fillCons(t.consultation); detAppr.set(t.approvals); renderCycleBox(t);
-      [["f-femail", "focalEmail"], ["f-fphone", "focalPhone"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
+      [["f-femail", "focalEmail"], ["f-bemail", "backupEmail"]].forEach(([id, k]) => { $(id).placeholder = t[k] === undefined ? "Saved privately — retype to change" : ""; });
       save.textContent = "Save details"; skip.hidden = true;
       $("dlg-current").textContent = signedInAs(ed.email) ? `Signed in as ${role}` : `Verified as ${role}: ${ed.email}`;
     } else {
@@ -1797,13 +1794,10 @@ function renderAccess() {
   $("acc-help").innerHTML = leadOnly
     ? `<p>As a CWG lead, you can see who leads <strong>${esc(cl.join(" and "))}</strong>.</p><p>Below, you can manage your territories' focal and backup persons.</p><p>Only programme coordinators and other admins can change who has admin access.</p>`
     : `<p>Everyone listed here can <strong>Sign in → Admin</strong>.</p><ul><li><strong>Programme coordinators</strong> and <strong>other admins</strong> can manage everything. Enter one email per line, as many as needed.</li><li>Each <strong>CWG</strong> has <strong>one CWG lead</strong>, who can only manage their own CWG's territories. You can also add an <strong>alternative email</strong> for the lead (e.g. a second work address); both can sign in as that CWG lead.</li></ul><p>You can't remove your own email.</p>`
-  $("acc-coord").value = (accessCfg.coordinators || []).join("\n");
-  $("acc-other").value = (accessCfg.otherAdmins || []).join("\n");
-  $("acc-leads").innerHTML = cl.map(c => { const em = (accessCfg.cwgLeads || {})[c] || []; return `<div class="field"><label>${esc(c)} CWG lead</label>
-    <input type="email" data-cwg="${esc(c)}" data-slot="0" maxlength="200" placeholder="main email" value="${esc(em[0] || "")}" ${leadOnly ? "readonly" : ""}>
-    <input type="email" data-cwg="${esc(c)}" data-slot="1" maxlength="200" placeholder="alternative email (optional)" value="${esc(em[1] || "")}" ${leadOnly ? "readonly" : ""} style="margin-top:6px"></div>`; }).join("");
-  $("acc-save").hidden = leadOnly;
-  card.querySelectorAll("textarea, input[data-cwg]").forEach(ta => ta.addEventListener("input", () => { card.dataset.editing = "1"; }));
+  // admins, CWG leads and view-only accounts are managed in one place: the ASLP website console
+  card.querySelector(".access-grid").hidden = true; $("acc-save").hidden = true;
+  $("acc-title").textContent = "Admins and CWG leads";
+  $("acc-help").innerHTML = `<p>Only admins, CWG leads and view-only accounts can sign in, each with a Gmail address. ${leadOnly || viewer.view_only ? "The ASLP admins manage them" : "Manage them"} in the <a href="https://salvationarmy-aslp.org/#/console" target="_blank" rel="noopener">ASLP website console</a>, under <strong>Access</strong>.</p>`;
 }
 function renderLeadDetails() {
   const card = $("leads-card");
@@ -1835,7 +1829,7 @@ function renderLeadDetails() {
 }
 function renderContacts() {
   const card = $("contacts-card");
-  const show = !!(db && isEditor && (accessCfg.contacts || []).length);
+  const show = false;   // the websites no longer keep focal or backup persons' emails
   card.hidden = !show;
   if (!show || card.dataset.editing === "1") return;
   const rows = accessCfg.contacts;
@@ -2042,8 +2036,6 @@ function renderDetail() {
     <div class="td-facts">
       <div><div class="k">Zone · CWG</div><div class="v">${esc(zoneOf(t) === "OTHER" ? cwgOf(t) : zoneLabel(zoneOf(t)) + " · " + cwgOf(t))}</div></div>
       <div><div class="k">Focal person</div><div class="v">${t.focal ? esc(t.focal) : "—"}${t.focalRole ? `<div class="muted" style="font-weight:400;font-size:12px;margin-top:2px">${esc(t.focalRole)}</div>` : ""}</div></div>
-      ${t.focalEmail ? `<div><div class="k">Focal email</div><div class="v">${esc(t.focalEmail)}</div></div>` : ""}
-      ${t.focalPhone ? `<div><div class="k">Focal phone</div><div class="v">${esc(t.focalPhone)}</div></div>` : ""}
       <div><div class="k">Strategy period</div><div class="v">${esc(t.strategyPeriod || "—")}</div></div>
       ${sIndex(t.status) >= 4 ? "" : `<div><div class="k">Target</div><div class="v">${esc(t.target || "—")}</div></div>`}
       <div><div class="k">Approving bodies</div><div class="v">${approvalsHtml(t.approvals)}</div></div>
@@ -2846,7 +2838,7 @@ function cdsSteps() {
     S.push({ el: "#f-note", before: () => ASLPTour.fillIn("#f-note", "Draft shared with THQ for comment."), title: "A short note", text: "Say what happened, in a line. We've typed a sample. Notes show in the territory's history." });
     S.push({ el: "#dlg-save", wait: "click", delay: 1200, title: "Save the status", text: "Select <b>Save status</b>. In this test run nothing is saved." });
     S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-focal").closest(".two") : null, skipIfMissing: true, title: "CD Strategy details",
-      text: "Next come the details: the focal person, their role and contacts. Only signed-in people with access see the emails and phone." });
+      text: "Next come the details: the focal person, their role and contacts. Only signed-in people with access see the emails." });
     S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-period-from").closest(".two") : null, skipIfMissing: true, title: "Strategy period", text: "The years the CD Strategy covers." });
     S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-approvals").closest(".field") : null, skipIfMissing: true, title: "Approving bodies", text: "Add each body that approves the CD Strategy, and the date it did. Leave the date empty until it's approved." });
     S.push({ el: () => !$("step-2").hidden && !$("details-form").hidden ? $("f-doc") : null, skipIfMissing: true, title: "Document link", text: "Link to the CD Strategy document, e.g. on SharePoint or Google Drive." });
