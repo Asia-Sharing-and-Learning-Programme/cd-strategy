@@ -110,6 +110,12 @@
   .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px;
            border: 1px solid var(--border); font-size: 12px; white-space: nowrap; color: var(--text-primary); }
   .muted { color: var(--text-muted); }
+  .xl-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .xl-table th, .xl-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .xl-table th { font-size: 12px; color: var(--text-muted); }
+  .xl-updated td:last-child strong, .xl-ok strong { color: #1b8a4a; } .xl-error td:last-child strong, .xl-err { color: #c0392b; } .xl-skipped td:last-child strong { color: var(--text-muted); }
+  .xl-warn { margin: 8px 0 0 18px; font-size: 12.5px; color: #a35c00; }
+
   .chart { position: relative; }
   :root { --tl-start: #005fc0; --tl-end: #e04c1e; }
   :root[data-theme="dark"] { --tl-start: #3d86dc; --tl-end: #e8602c; }
@@ -654,6 +660,7 @@
           <div class="consoles-btns"><span class="pill-btn pill-fill" aria-current="page">CD Strategies (this page)</span><a class="pill-btn pill-line" style="text-decoration:none" href="/#/console">Website details on the ASLP website</a></div></div>
         <div class="muted" style="font-size:12px;margin-top:8px">The ASLP website shows each territory's headquarters, countries, offices, status, strategy period and focal person straight from here, so you only enter them once. Its console is for territory profiles, contacts and CWG members.</div>
       </section>
+      <section class="card" id="xl-card" style="margin-bottom:16px" hidden></section>
       <section class="card" id="access-card" hidden>
         <h2 style="margin-bottom:4px" id="acc-title">Admins</h2>
         <div class="muted help" id="acc-help"></div>
@@ -1128,7 +1135,7 @@ function renderCwgMatrix() {
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTimeline(); renderConsultation(); renderTable(); renderDatabase(); try { renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
+function renderAll() { renderCwgBar(); renderKpis(); renderSummary(); renderChart(); renderCwgMatrix(); renderTimeline(); renderConsultation(); renderTable(); renderDatabase(); try { renderXlUpload(); renderAccess(); renderLeadDetails(); renderContacts(); } catch (e) {} renderHelp(); fitZoneLocks(); }
 // Share: main site link (+ the current page, when on a territory or tab) and the device's own share sheet where available
 const SITE_URL = location.origin + location.pathname.replace(/index\.html$/, "");
 async function copyText(txt, btn) {
@@ -1878,6 +1885,77 @@ $("acc-save").addEventListener("click", async () => {
   catch (err) { toast(errMsg(err)); }
   finally { b.disabled = false; }
 });
+
+/* ---------- update several territories from the Excel template (admins and CWG leads) ---------- */
+const XL_TPL = "/templates/ASLP-CD-Strategies-Template.xlsx";
+const xlText = c => { let v = c && c.value; if (v == null) return ""; if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "object") { if (v.richText) v = v.richText.map(x => x.text).join(""); else if (v.text != null) v = v.text; else if (v.result != null) v = v.result; else if (v.hyperlink) v = v.hyperlink; else v = ""; }
+  return String(v).trim(); };
+// dates come as real dates, or as text like 20/11/2026 or 2026-11-20
+const xlDate = s => { if (!s) return ""; if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/); return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null; };
+function xlCds(wb) {
+  const rows = {}, warn = [], row = id => (rows[id] = rows[id] || { territory: id, details: {} });
+  const byId = Object.fromEntries(territories.map(t => [t.id, t])), byName = Object.fromEntries(territories.map(t => [String(t.name).toLowerCase(), t.id]));
+  const stKey = Object.fromEntries(STATUSES.map(s => [s.label.toLowerCase(), s.key]));
+  const ws = wb.getWorksheet("CD Strategies"); if (!ws) throw new Error("This isn't the CD Strategies template: there's no CD Strategies tab. Download the template and try again.");
+  ws.eachRow((r, n) => { if (n < 2) return; const id = xlText(r.getCell(1)); if (!id || id === "EXAMPLE") return;
+    const v = k => xlText(r.getCell(k)), any = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].some(k => v(k)); if (!any) return;
+    const t = byId[id]; if (!t) return warn.push(`CD Strategies, row ${n}: unknown territory ID "${id}". Don't change the grey columns.`);
+    const e = row(id), d = e.details, txt = (k, f) => { const x = v(k); if (x) d[f] = x === "-" ? "" : x; };
+    if (v(4)) { const k = stKey[v(4).toLowerCase()]; if (k) e.status = k; else warn.push(`${t.name}: "${v(4)}" isn't a status. Pick it from the dropdown.`); }
+    if (v(5)) { const dt = xlDate(v(5)); if (dt) e.statusDate = dt; else warn.push(`${t.name}: the status date "${v(5)}" isn't a date (use dd/mm/yyyy).`); }
+    if (v(6)) e.statusNote = v(6);
+    txt(7, "strategyPeriod"); txt(8, "target"); txt(9, "docLink"); txt(10, "focal"); txt(11, "focalRole"); txt(12, "location");
+    if (v(13)) d.countries = v(13) === "-" ? [] : v(13).split(",").map(x => x.trim()).filter(Boolean);
+    if (v(14)) { const keep = Object.fromEntries((t.offices || []).map(o => [String(o.name).toLowerCase(), o]));   // keep map positions of offices that stay
+      d.offices = v(14) === "-" ? [] : v(14).split(";").map(x => x.trim()).filter(Boolean).map(nm => { const o = keep[nm.toLowerCase()]; return o ? { name: nm, lat: o.lat ?? "", lng: o.lng ?? "" } : { name: nm }; }); }
+    if (v(15)) { const held = /^y/i.test(v(15));
+      if (!held) d.consultation = { held: false };
+      else { const f = xlDate(v(16)), to = xlDate(v(17)) || f, tm = /during/i.test(v(18)) ? "during" : /before/i.test(v(18)) ? "before" : "";
+        if (!f || !tm) warn.push(`${t.name}: for a consultation / workshop, give the start date and whether it was before or during drafting.`);
+        else d.consultation = { held: true, from: f, to, timing: tm }; } }
+  });
+  const ap = wb.getWorksheet("Approvals");
+  if (ap) ap.eachRow((r, n) => { if (n < 2) return; const tn = xlText(r.getCell(1)); if (!tn || /^example territory$/i.test(tn)) return;
+    const id = byName[tn.toLowerCase()]; if (!id) return warn.push(`Approvals, row ${n}: unknown territory "${tn}". Pick it from the dropdown.`);
+    const body = xlText(r.getCell(2)), dt = xlDate(xlText(r.getCell(3)));
+    if (!body) return warn.push(`Approvals, row ${n}: the approval for ${tn} has no approving body, so it was left out.`);
+    if (dt === null) return warn.push(`Approvals, row ${n}: "${xlText(r.getCell(3))}" isn't a date (use dd/mm/yyyy).`);
+    (row(id).details.approvals = row(id).details.approvals || []).push({ body, date: dt || "" }); });
+  return { rows: Object.values(rows).filter(e => e.status || Object.keys(e.details).length), warn };
+}
+const XL_LABELS = { strategyPeriod: "Strategy period", target: "Target", docLink: "Document link", focal: "Focal person", focalRole: "Focal person role", location: "Headquarters", countries: "Countries", offices: "Offices", consultation: "Consultation", approvals: "Approvals" };
+function renderXlUpload() {
+  const card = $("xl-card"); const show = !!(db && isEditor && !viewer.view_only); card.hidden = !show;
+  if (!show || card.dataset.ready) return; card.dataset.ready = "1";
+  card.innerHTML = `<h2 style="margin-bottom:4px">Update from Excel</h2>
+    <div class="muted help"><ol style="margin:0 0 6px 18px;padding:0"><li><a href="${XL_TPL}" download>Download the template</a> (one row per territory).</li><li>Fill in what changes. Blank cells mean no change.</li><li>Upload it here, check what will change, then confirm.</li></ol>
+    <p>${isFullAdmin ? "You can update every territory." : "You can update your own CWG's territories. Rows for others are skipped."} Each change goes into the territory's update history, marked as an Excel upload.</p></div>
+    <div class="field" style="max-width:480px;margin-top:8px"><label for="xl-in">Your filled-in template (.xlsx)</label><input type="file" id="xl-in" accept=".xlsx"></div><div id="xl-out" role="status"></div>`;
+  const out = $("xl-out");
+  $("xl-in").addEventListener("change", async e => {
+    const file = e.target.files[0]; if (!file) return;
+    out.innerHTML = `<p class="muted">Reading ${esc(file.name)}…</p>`;
+    let parsed;
+    try { await loadScript("vendor/exceljs.min.js"); const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await file.arrayBuffer()); parsed = xlCds(wb); }
+    catch (err) { out.innerHTML = `<p class="xl-err">${esc(/zip|central directory|end of data/i.test(err.message || "") ? "That file couldn't be read. Please upload the template saved as .xlsx." : err.message || "That file couldn't be read.")}</p>`; return; }
+    const { rows, warn } = parsed, stLabel = Object.fromEntries(STATUSES.map(s => [s.key, s.label]));
+    const warnHtml = warn.length ? `<ul class="xl-warn">${warn.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : "";
+    if (!rows.length) { out.innerHTML = warnHtml + `<p class="muted">Nothing to update: no yellow cells are filled in.</p>`; return; }
+    out.innerHTML = warnHtml + `<div class="tblwrap"><table class="xl-table"><thead><tr><th>Territory</th><th>Filled in</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc((territories.find(t => t.id === r.territory) || {}).name || r.territory)}</td>
+      <td>${esc([r.status && `Status: ${stLabel[r.status]}`, ...Object.keys(r.details).map(k => XL_LABELS[k] || k)].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="primary small" id="xl-go">Update ${rows.length} ${rows.length === 1 ? "territory" : "territories"}</button><button class="small" id="xl-cancel">Cancel</button></div>`;
+    $("xl-cancel").onclick = () => { out.innerHTML = ""; e.target.value = ""; };
+    $("xl-go").onclick = async () => {
+      const b = $("xl-go"); b.disabled = true; b.textContent = "Updating…";
+      let res; try { res = await rpc("cds_upload", { p_file: file.name, p_rows: rows }); } catch (err) { b.disabled = false; b.textContent = "Try again"; toast(errMsg(err)); return; }
+      const rs = (res && res.results) || [], n = rs.filter(x => x.status === "updated").length, lbl = { updated: "Updated", nochange: "No change", skipped: "Skipped", error: "Not updated" };
+      out.innerHTML = `<p class="xl-ok"><strong>${n} ${n === 1 ? "territory" : "territories"} updated</strong> from ${esc(file.name)}.</p>
+        <div class="tblwrap"><table class="xl-table"><thead><tr><th>Territory</th><th>Result</th></tr></thead><tbody>${rs.map(x => `<tr class="xl-${x.status}"><td>${esc(x.name || x.territory)}</td><td><strong>${lbl[x.status] || x.status}</strong>${x.changes && x.changes.length ? `: ${esc(x.changes.join(", "))}` : ""}${x.message ? `. ${esc(x.message)}` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+      e.target.value = ""; if (n) { toast(`${n} updated from Excel.`); load(true); }
+    };
+  });
+}
 
 /* ---------- database tab ---------- */
 function whoName(l) { return ""; }
