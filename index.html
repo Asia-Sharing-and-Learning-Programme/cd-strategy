@@ -1663,13 +1663,21 @@ function setStep(n) {
     }
   }
 }
+// updating needs a signed-in account: email + PIN (CWG members and contact persons use their CWG's PIN)
+let afterSignin = null;
 function openDialog(terrId) {
+  if (!viewer.email) {
+    afterSignin = () => openDialog(terrId);
+    $("auth-btn").click();
+    const h = document.querySelector("#adlg-pin .help"); if (h) h.innerHTML = "<p><strong>To update a CD Strategy, sign in first</strong> with your registered email and PIN. CWG members and contact persons use their CWG’s PIN, from their CWG lead.</p>";
+    return;
+  }
   let remembered = ""; try { remembered = sessionStorage.getItem("cd-email") || ""; } catch (e) {}
   ed = { terr: null, email: "", mine: null, step: 0, statusSaved: false, detailsSaved: false, newLogs: [] };
   $("dlg-title").textContent = "Update a CD Strategy";
   $("dlg-current").textContent = "Enter your registered email to continue.";
   $("terr-pick").hidden = true; $("f-terr").innerHTML = "";
-  $("f-email").value = viewer.email || remembered; $("f-email").disabled = false;
+  $("f-email").value = viewer.email || remembered; $("f-email").disabled = !!viewer.email;
   $("f-date").value = todayISO();
   $("f-note").value = "";
   // Signed in (Admin or CD Focal Person): no need to re-enter the email — go straight to the territory.
@@ -1729,7 +1737,7 @@ $("dlg-form").addEventListener("submit", async e => {
     let mine = [];
     try { mine = await rpc("get_my_territories", { p_email: ed.email }) || []; } catch (e2) { $("dlg-save").disabled = false; $("dlg-err").textContent = errMsg(e2); return; }
     $("dlg-save").disabled = false;
-    if (!mine.length) { $("dlg-err").textContent = "This email isn't registered as a focal or backup person for any territory. Please check the email, or ask your programme coordinator to register you."; return; }
+    if (!mine.length) { $("dlg-err").textContent = "Your email isn't registered for any territory yet. CWG members and contact persons: ask your CWG lead to register your email for your territory."; return; }
     try { sessionStorage.setItem("cd-email", ed.email); } catch (e2) {}
     ed.mine = mine;
     if (mine.length === 1) { chooseTerritory(mine[0]); setStep(1); return; }
@@ -2705,12 +2713,13 @@ $("auth-btn").addEventListener("click", () => {
     + (viewer.view_only ? `<li><strong>View only</strong>: you see everything an admin sees, including the <a href="#admin" id="go-admin">Admin</a> tab, but you can't change anything.</li>` : "")
     + (isEditor && !viewer.view_only ? `<li><strong>${isFullAdmin ? "Admin" : "CWG lead"}</strong> (${esc(viewer.role || "admin")})${isFullAdmin ? " — full access to all territories" : ` — for ${esc((viewer.lead_cwgs || []).join(" and "))} territories only`}. Open the <a href="#admin" id="go-admin">Admin</a> tab.</li>` : "")
     + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
-    + (!isEditor && !focalNames.length ? `<li>This email has no access on this site yet. Please contact the SWI-SAID Asia Programme Manager.</li>` : "")
+    + (!isEditor && !focalNames.length && myTerrs.length ? `<li><strong>CWG member or contact person</strong> for ${myTerrs.map(m => esc(m.name)).join(", ")}. Use <strong>Update</strong> to change its status and CD Strategy details.</li>` : "")
+    + (!isEditor && !focalNames.length && !myTerrs.length ? `<li>This email has no access on this site yet. Please contact the SWI-SAID Asia Programme Manager.</li>` : "")
     + `</ul>` : "";
   $("adlg-title").textContent = "Signed in"; $("adlg-title").hidden = !signedIn;
   $("adlg-in").hidden = true; $("adlg-sent").hidden = true; $("adlg-limit").innerHTML = "";
   $("adlg-pin").hidden = signedIn;
-  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { guide: true, onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); ASLPPin.altPrompt(db); } });
+  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { guide: true, onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); ASLPPin.altPrompt(db); const f = afterSignin; afterSignin = null; if (f) f(); } });
   $("adlg-go").textContent = "Sign out";
   $("adlg-go").disabled = false;
   $("adlg-go").hidden = !signedIn; $("adlg-code").hidden = true;
@@ -2718,6 +2727,8 @@ $("auth-btn").addEventListener("click", () => {
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
 $("adlg-cancel").addEventListener("click", () => $("adlg").close());
+$("adlg").addEventListener("close", () => { if (!viewer.email) afterSignin = null;
+  const h = document.querySelector("#adlg-pin .help"); if (h && /sign in first/.test(h.textContent)) h.innerHTML = "<p>Sign in with your email and PIN. It's the same sign-in as the ASLP website and the Calendar. New here? <a href=\"/#/console\">See how to get set up</a>.</p>"; });
 // Sign in with the code from the email (works even when an email scanner has already opened the link)
 let codeEmail = "";
 async function signInWithCode() {
