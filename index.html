@@ -1915,14 +1915,14 @@ function xlCds(wb) {
         if (!f || !tm) warn.push(`${t.name}: for a consultation / workshop, give the start date and whether it was before or during drafting.`);
         else if (!(c0.held && c0.from === f && (c0.to || c0.from) === to && c0.timing === tm)) d.consultation = { held: true, from: f, to, timing: tm }; } }
   });
-  const ap = wb.getWorksheet("Approvals"), apps = {};
-  ap.eachRow((r, n) => { if (n < 2) return; const tn = xlText(r.getCell(1)), body = xlText(r.getCell(2)), raw = xlText(r.getCell(3)); if (!tn && !body && !raw) return;
-    const id = byName[tn.toLowerCase()]; if (!id) return warn.push(`Approvals, row ${n}: ${tn ? `unknown territory "${tn}"` : "no territory picked"}, so it was left out.`);
-    if (!body) return warn.push(`Approvals, row ${n}: the approval for ${tn} has no approving body, so it was left out.`);
-    const dt = xlDate(raw); if (dt === null) return warn.push(`Approvals, row ${n}: "${raw}" isn't a date.`);
-    (apps[id] = apps[id] || []).push({ body, date: dt || "" }); });
+  const ap = wb.getWorksheet("Approvals"), apps = {}; let aid = "";
+  ap.eachRow({ includeEmpty: true }, (r, n) => { if (n < 2) return; const rid = xlText(r.getCell(1)); if (rid) aid = rid; if (!aid || !byId[aid]) return;
+    const body = xlText(r.getCell(3)), raw = xlText(r.getCell(4)); apps[aid] = apps[aid] || []; if (!body && !raw) return;
+    if (!body) return warn.push(`Approvals, ${byId[aid].name}: an approval dated ${raw} has no approving body, so it was left out.`);
+    const dt = xlDate(raw); if (dt === null) return warn.push(`Approvals, ${byId[aid].name}: "${raw}" isn't a date.`);
+    apps[aid].push({ body, date: dt || "" }); });
   // approvals: for each territory in the file, its rows replace what's there, sent only when they differ
-  const key = a => (a || []).map(x => `${String(x.body).trim()}|${x.date || ""}`).sort().join(";");
+  const key = a => (a || []).map(x => `${String(x.body).trim()}|${String(x.date || "").slice(0, 10)}`).sort().join(";");
   inFile.forEach(id => { if (key(apps[id]) !== key(byId[id].approvals)) row(id).details.approvals = apps[id] || []; });
   Object.keys(apps).filter(id => !inFile.has(id)).forEach(id => warn.push(`Approvals: ${byId[id] ? byId[id].name : id} isn't in this CWG's file, so its approvals were left out.`));
   return { rows: Object.values(rows).filter(e => e.status || Object.keys(e.details).length), warn };
