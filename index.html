@@ -889,7 +889,7 @@
       </div>
       <div id="adlg-out" hidden></div>
       <div class="err" id="adlg-err"></div>
-      <div class="dlg-help help" id="adlg-help"><p><strong>Having trouble signing in?</strong></p><ul><li>Admins and CWG leads: contact the SWI-SAID Asia Programme Manager.</li><li>CWG members and contact persons: ask your CWG lead for your CWG's PIN.</li></ul></div>
+      <div class="dlg-help help" id="adlg-help"><p><strong>Having trouble signing in?</strong></p><ul><li>CWG members and contact persons: ask your CWG lead for your CWG's PIN, and to check your email is registered for your territory.</li><li>CWG leads, admins and view-only accounts: forgot your PIN? Ask an ASLP admin to reset it, then set up a new one with <em>First time? Set up your PIN</em>.</li></ul></div>
     </div>
     <div class="dlg-actions">
       <button type="button" id="adlg-cancel">Close</button>
@@ -2710,7 +2710,7 @@ $("auth-btn").addEventListener("click", () => {
   $("adlg-title").textContent = "Signed in"; $("adlg-title").hidden = !signedIn;
   $("adlg-in").hidden = true; $("adlg-sent").hidden = true; $("adlg-limit").innerHTML = "";
   $("adlg-pin").hidden = signedIn;
-  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); ASLPPin.altPrompt(db); } });
+  if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { guide: true, onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); ASLPPin.altPrompt(db); } });
   $("adlg-go").textContent = "Sign out";
   $("adlg-go").disabled = false;
   $("adlg-go").hidden = !signedIn; $("adlg-code").hidden = true;
