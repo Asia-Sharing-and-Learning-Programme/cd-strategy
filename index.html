@@ -1887,7 +1887,6 @@ $("acc-save").addEventListener("click", async () => {
 });
 
 /* ---------- update several territories from the Excel template (admins and CWG leads) ---------- */
-const XL_TPL = "/templates/ASLP-CD-Strategies-Template.xlsx";
 const xlText = c => { let v = c && c.value; if (v == null) return ""; if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v === "object") { if (v.richText) v = v.richText.map(x => x.text).join(""); else if (v.text != null) v = v.text; else if (v.result != null) v = v.result; else if (v.hyperlink) v = v.hyperlink; else v = ""; }
   return String(v).trim(); };
@@ -1897,42 +1896,60 @@ function xlCds(wb) {
   const rows = {}, warn = [], row = id => (rows[id] = rows[id] || { territory: id, details: {} });
   const byId = Object.fromEntries(territories.map(t => [t.id, t])), byName = Object.fromEntries(territories.map(t => [String(t.name).toLowerCase(), t.id]));
   const stKey = Object.fromEntries(STATUSES.map(s => [s.label.toLowerCase(), s.key]));
-  const ws = wb.getWorksheet("CD Strategies"); if (!ws) throw new Error("This isn't the CD Strategies template: there's no CD Strategies tab. Download the template and try again.");
-  ws.eachRow((r, n) => { if (n < 2) return; const id = xlText(r.getCell(1)); if (!id || id === "EXAMPLE") return;
-    const v = k => xlText(r.getCell(k)), any = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].some(k => v(k)); if (!any) return;
-    const t = byId[id]; if (!t) return warn.push(`CD Strategies, row ${n}: unknown territory ID "${id}". Don't change the grey columns.`);
-    const e = row(id), d = e.details, txt = (k, f) => { const x = v(k); if (x) d[f] = x === "-" ? "" : x; };
-    if (v(4)) { const k = stKey[v(4).toLowerCase()]; if (k) e.status = k; else warn.push(`${t.name}: "${v(4)}" isn't a status. Pick it from the dropdown.`); }
-    if (v(5)) { const dt = xlDate(v(5)); if (dt) e.statusDate = dt; else warn.push(`${t.name}: the status date "${v(5)}" isn't a date (use dd/mm/yyyy).`); }
-    if (v(6)) e.statusNote = v(6);
-    txt(7, "strategyPeriod"); txt(8, "target"); txt(9, "docLink"); txt(10, "focal"); txt(11, "focalRole"); txt(12, "location");
-    if (v(13)) d.countries = v(13) === "-" ? [] : v(13).split(",").map(x => x.trim()).filter(Boolean);
-    if (v(14)) { const keep = Object.fromEntries((t.offices || []).map(o => [String(o.name).toLowerCase(), o]));   // keep map positions of offices that stay
-      d.offices = v(14) === "-" ? [] : v(14).split(";").map(x => x.trim()).filter(Boolean).map(nm => { const o = keep[nm.toLowerCase()]; return o ? { name: nm, lat: o.lat ?? "", lng: o.lng ?? "" } : { name: nm }; }); }
-    if (v(15)) { const held = /^y/i.test(v(15));
-      if (!held) d.consultation = { held: false };
-      else { const f = xlDate(v(16)), to = xlDate(v(17)) || f, tm = /during/i.test(v(18)) ? "during" : /before/i.test(v(18)) ? "before" : "";
+  const ws = wb.getWorksheet("CD Strategies"); if (!ws || !wb.getWorksheet("Approvals")) throw new Error("This isn't the CD Strategies template. Download your CWG's template here and try again.");
+  const same = (a, b) => String(a || "").trim() === String(b || "").trim(), inFile = new Set();
+  ws.eachRow((r, n) => { if (n < 2) return; const id = xlText(r.getCell(1)); if (!id) return;
+    const v = k => xlText(r.getCell(k)), t = byId[id]; if (!t) return warn.push(`CD Strategies, row ${n}: unknown territory ID "${id}".`); inFile.add(id);
+    const e = row(id), d = e.details, txt = (k, f) => { const x = v(k); if (x && !same(x === "-" ? "" : x, t[f])) d[f] = x === "-" ? "" : x; };
+    if (v(4)) { const k = stKey[v(4).toLowerCase()]; if (!k) warn.push(`${t.name}: "${v(4)}" isn't a status.`); else if (k !== t.status) { e.status = k;
+      if (v(5)) { const dt = xlDate(v(5)); if (dt) e.statusDate = dt; else warn.push(`${t.name}: the status date "${v(5)}" isn't a date.`); } } }
+    const y1 = v(6), y2 = v(7);
+    if (y1 || y2) { if (!(y1 && y2)) warn.push(`${t.name}: pick both the start and the end year of the strategy period.`);
+      else if (+y2 < +y1) warn.push(`${t.name}: the strategy period ends before it starts.`);
+      else if (!same(`${y1}–${y2}`, String(t.strategyPeriod || "").replace(/(\d{4})\s*[-–—]\s*(\d{4})/, "$1–$2"))) d.strategyPeriod = `${y1}–${y2}`; }
+    if (v(8) && !same(v(8), t.target)) d.target = v(8);
+    txt(9, "docLink"); txt(10, "focal"); txt(11, "focalRole");
+    if (v(12)) { const held = /^y/i.test(v(12)), c0 = t.consultation || {};
+      if (!held) { if (c0.held !== false) d.consultation = { held: false }; }
+      else { const f = xlDate(v(13)), to = xlDate(v(14)) || f, tm = /during/i.test(v(15)) ? "during" : /before/i.test(v(15)) ? "before" : "";
         if (!f || !tm) warn.push(`${t.name}: for a consultation / workshop, give the start date and whether it was before or during drafting.`);
-        else d.consultation = { held: true, from: f, to, timing: tm }; } }
+        else if (!(c0.held && c0.from === f && (c0.to || c0.from) === to && c0.timing === tm)) d.consultation = { held: true, from: f, to, timing: tm }; } }
   });
-  const ap = wb.getWorksheet("Approvals");
-  if (ap) ap.eachRow((r, n) => { if (n < 2) return; const tn = xlText(r.getCell(1)); if (!tn || /^example territory$/i.test(tn)) return;
-    const id = byName[tn.toLowerCase()]; if (!id) return warn.push(`Approvals, row ${n}: unknown territory "${tn}". Pick it from the dropdown.`);
-    const body = xlText(r.getCell(2)), dt = xlDate(xlText(r.getCell(3)));
+  const ap = wb.getWorksheet("Approvals"), apps = {};
+  ap.eachRow((r, n) => { if (n < 2) return; const tn = xlText(r.getCell(1)), body = xlText(r.getCell(2)), raw = xlText(r.getCell(3)); if (!tn && !body && !raw) return;
+    const id = byName[tn.toLowerCase()]; if (!id) return warn.push(`Approvals, row ${n}: ${tn ? `unknown territory "${tn}"` : "no territory picked"}, so it was left out.`);
     if (!body) return warn.push(`Approvals, row ${n}: the approval for ${tn} has no approving body, so it was left out.`);
-    if (dt === null) return warn.push(`Approvals, row ${n}: "${xlText(r.getCell(3))}" isn't a date (use dd/mm/yyyy).`);
-    (row(id).details.approvals = row(id).details.approvals || []).push({ body, date: dt || "" }); });
+    const dt = xlDate(raw); if (dt === null) return warn.push(`Approvals, row ${n}: "${raw}" isn't a date.`);
+    (apps[id] = apps[id] || []).push({ body, date: dt || "" }); });
+  // approvals: for each territory in the file, its rows replace what's there, sent only when they differ
+  const key = a => (a || []).map(x => `${String(x.body).trim()}|${x.date || ""}`).sort().join(";");
+  inFile.forEach(id => { if (key(apps[id]) !== key(byId[id].approvals)) row(id).details.approvals = apps[id] || []; });
+  Object.keys(apps).filter(id => !inFile.has(id)).forEach(id => warn.push(`Approvals: ${byId[id] ? byId[id].name : id} isn't in this CWG's file, so its approvals were left out.`));
   return { rows: Object.values(rows).filter(e => e.status || Object.keys(e.details).length), warn };
+}
+// the CWG's template, filled in with the CD Strategies as they are now
+const xlCwgs = () => isFullAdmin ? [...new Set(territories.map(t => cwgOf(t)).filter(c => c && c !== UNASSIGNED))].sort() : (viewer.lead_cwgs || []);
+async function xlTemplate(cwg, btn) {
+  const lbl = btn.textContent; btn.disabled = true; btn.textContent = "Preparing…";
+  try {
+    await loadScript("vendor/exceljs.min.js"); await loadScript("/aslp-xl.js");
+    const ts = territories.filter(t => cwgOf(t) === cwg).sort((a, b) => a.name.localeCompare(b.name));
+    const blob = await ASLPXL.cds({ cwg, terrs: ts, statuses: STATUSES.map(s => ({ key: s.key, label: s.label })) });
+    ASLPXL.save(blob, `ASLP-${cwg.replace(/\s+/g, "")}-CD-Strategies.xlsx`);
+  } catch (e) { console.error(e); toast("The template couldn't be made. Please try again."); }
+  btn.disabled = false; btn.textContent = lbl;
 }
 const XL_LABELS = { strategyPeriod: "Strategy period", target: "Target", docLink: "Document link", focal: "Focal person", focalRole: "Focal person role", location: "Headquarters", countries: "Countries", offices: "Offices", consultation: "Consultation", approvals: "Approvals" };
 function renderXlUpload() {
   const card = $("xl-card"); const show = !!(db && isEditor && !viewer.view_only); card.hidden = !show;
   if (!show || card.dataset.ready) return; card.dataset.ready = "1";
   card.innerHTML = `<h2 style="margin-bottom:4px">Update from Excel</h2>
-    <div class="muted help"><ol style="margin:0 0 6px 18px;padding:0"><li><a href="${XL_TPL}" download>Download the template</a> (one row per territory).</li><li>Fill in what changes. Blank cells mean no change.</li><li>Upload it here, check what will change, then confirm.</li></ol>
+    <div class="muted help"><ol style="margin:0 0 6px 18px;padding:0"><li>Download your CWG's template. It's filled in with the CD Strategies as they are now, with dropdowns for almost everything.</li><li>Change what needs changing and save it.</li><li>Upload it here, check what will change, then confirm.</li></ol>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px">${xlCwgs().map(c => `<button class="small" data-xl-cwg="${esc(c)}">Download the ${esc(c)} template</button>`).join("")}</div>
     <p>${isFullAdmin ? "You can update every territory." : "You can update your own CWG's territories. Rows for others are skipped."} Each change goes into the territory's update history, marked as an Excel upload.</p></div>
     <div class="field" style="max-width:480px;margin-top:8px"><label for="xl-in">Your filled-in template (.xlsx)</label><input type="file" id="xl-in" accept=".xlsx"></div><div id="xl-out" role="status"></div>`;
   const out = $("xl-out");
+  card.querySelectorAll("[data-xl-cwg]").forEach(b => b.onclick = () => xlTemplate(b.dataset.xlCwg, b));
   $("xl-in").addEventListener("change", async e => {
     const file = e.target.files[0]; if (!file) return;
     out.innerHTML = `<p class="muted">Reading ${esc(file.name)}…</p>`;
@@ -1941,8 +1958,8 @@ function renderXlUpload() {
     catch (err) { out.innerHTML = `<p class="xl-err">${esc(/zip|central directory|end of data/i.test(err.message || "") ? "That file couldn't be read. Please upload the template saved as .xlsx." : err.message || "That file couldn't be read.")}</p>`; return; }
     const { rows, warn } = parsed, stLabel = Object.fromEntries(STATUSES.map(s => [s.key, s.label]));
     const warnHtml = warn.length ? `<ul class="xl-warn">${warn.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : "";
-    if (!rows.length) { out.innerHTML = warnHtml + `<p class="muted">Nothing to update: no yellow cells are filled in.</p>`; return; }
-    out.innerHTML = warnHtml + `<div class="tblwrap"><table class="xl-table"><thead><tr><th>Territory</th><th>Filled in</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc((territories.find(t => t.id === r.territory) || {}).name || r.territory)}</td>
+    if (!rows.length) { out.innerHTML = warnHtml + `<p class="muted">Nothing to update: the file matches what's on the website.</p>`; return; }
+    out.innerHTML = warnHtml + `<div class="tblwrap"><table class="xl-table"><thead><tr><th>Territory</th><th>Will change</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc((territories.find(t => t.id === r.territory) || {}).name || r.territory)}</td>
       <td>${esc([r.status && `Status: ${stLabel[r.status]}`, ...Object.keys(r.details).map(k => XL_LABELS[k] || k)].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table></div>
       <div style="display:flex;gap:8px;margin-top:10px"><button class="primary small" id="xl-go">Update ${rows.length} ${rows.length === 1 ? "territory" : "territories"}</button><button class="small" id="xl-cancel">Cancel</button></div>`;
     $("xl-cancel").onclick = () => { out.innerHTML = ""; e.target.value = ""; };
