@@ -11,18 +11,18 @@
 <meta property="og:site_name" content="Asia-Pacific Sharing &amp; Learning Programme (ASLP)">
 <meta property="og:title" content="Community Development Strategies | ASLP">
 <meta property="og:description" content="Community Development Strategies progress across South Pacific and East Asia (SPEA) and South Asia (SASIA) territories of The Salvation Army.">
-<meta property="og:url" content="https://salvationarmy-aslp.org/cd-strategy/">
-<meta property="og:image" content="https://salvationarmy-aslp.org/cd-strategy/og-image.png">
-<meta property="og:image:secure_url" content="https://salvationarmy-aslp.org/cd-strategy/og-image.png">
+<meta property="og:url" content="https://asia-sharing-and-learning-programme.github.io/cd-strategy/">
+<meta property="og:image" content="https://asia-sharing-and-learning-programme.github.io/cd-strategy/og-image.png">
+<meta property="og:image:secure_url" content="https://asia-sharing-and-learning-programme.github.io/cd-strategy/og-image.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="ASLP logo">
-<meta property="og:image" content="https://salvationarmy-aslp.org/cd-strategy/og-square.png">
+<meta property="og:image" content="https://asia-sharing-and-learning-programme.github.io/cd-strategy/og-square.png">
 <meta property="og:image:width" content="630">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://salvationarmy-aslp.org/cd-strategy/og-image.png">
+<meta name="twitter:image" content="https://asia-sharing-and-learning-programme.github.io/cd-strategy/og-image.png">
 <link rel="apple-touch-icon" href="og-square.png">
 <link rel="stylesheet" href="vendor/leaflet.css">
 <script src="vendor/leaflet.js"></script>
@@ -711,7 +711,7 @@
       <div class="muted" id="dlg-current"></div>
       <div class="dlg-tabs" role="tablist" aria-label="What to update" hidden><button type="button" role="tab" data-st="1">Status update</button><button type="button" role="tab" data-st="2">CD Strategy details</button></div>
       <div id="step-0">
-        <div class="field"><label for="f-email">Your Gmail</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="yourname@gmail.com"></div>
+        <div class="field"><label for="f-email">Your email</label><input type="email" id="f-email" maxlength="200" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div class="field" id="terr-pick" hidden><label for="f-terr">Territory</label><select id="f-terr"></select></div>
         <div class="hint help"><p><strong>Who can update</strong></p><ul><li><strong>Focal person:</strong> status and CD Strategy details</li><li><strong>Backup person:</strong> status only</li><li><strong>CWG leads and programme coordinators:</strong> their territories</li></ul><p>To edit CD Strategy details, <strong>sign in first</strong> (Sign in → CD Focal Person or Admin).</p><p>Your email is recorded with every update.</p></div>
       </div>
@@ -857,7 +857,7 @@
       <h3>Download Excel</h3>
       <div class="muted" style="font-size:13px;margin-top:4px" id="xdlg-intro"></div>
       <div class="xlsx-callout" id="xdlg-note"></div>
-      <div class="field"><label for="x-email">Your Gmail</label><input type="email" id="x-email" autocomplete="email" maxlength="200" placeholder="yourname@gmail.com"></div>
+      <div class="field"><label for="x-email">Your email</label><input type="email" id="x-email" autocomplete="email" maxlength="200" placeholder="name@salvationarmy.org"></div>
       <div class="err" id="xdlg-err"></div>
     </div>
     <div class="dlg-actions">
@@ -878,7 +878,7 @@
       <h3 id="adlg-title">Sign in</h3>
       <div id="adlg-in">
         <div class="muted help" style="margin-top:6px"><p>Enter the email the ASLP team registered for you. We'll email you a sign-in link.</p><p>What you can see and change depends on the access the admins gave you (Admin, CWG lead or CD focal person).</p><p>Backup persons don't need to sign in. They update the status with the <strong>Update</strong> button.</p></div>
-        <div class="field"><label for="a-email">Your Gmail</label><input type="email" id="a-email" autocomplete="email" placeholder="yourname@gmail.com"></div>
+        <div class="field"><label for="a-email">Your email</label><input type="email" id="a-email" autocomplete="email" placeholder="name@salvationarmy.org"></div>
         <div id="adlg-limit"></div>
       </div>
       <div id="adlg-sent" class="ok-note" hidden></div>
@@ -889,7 +889,7 @@
       </div>
       <div id="adlg-out" hidden></div>
       <div class="err" id="adlg-err"></div>
-      <div class="dlg-help help" id="adlg-help"><p><strong>Having trouble signing in?</strong></p><ul><li>Admins and CWG leads: contact the SWI-SAID Asia Programme Manager.</li><li>CD focal persons: contact your CWG lead.</li></ul></div>
+      <div class="dlg-help help" id="adlg-help"><p><strong>Having trouble signing in?</strong></p><ul><li>Admins and CWG leads: contact the SWI-SAID Asia Programme Manager.</li><li>CWG members and contact persons: ask your CWG lead for your CWG's PIN.</li></ul></div>
     </div>
     <div class="dlg-actions">
       <button type="button" id="adlg-cancel">Close</button>
@@ -900,7 +900,7 @@
 </dialog>
 <dialog id="sdlg" class="mini-dlg" aria-labelledby="sdlg-title">
   <h3 id="sdlg-title">Share this website</h3>
-  <p class="muted">Anyone with the link can see the public dashboard. Admins and CWG leads use the same link to update it, signing in with their Gmail.</p>
+  <p class="muted">Anyone with the link can see the public dashboard. Admins, CWG leads, and each territory's CWG members and contact persons use the same link to update it, signing in with their email and PIN.</p>
   <div class="copy-row"><input type="text" id="sdlg-url" readonly aria-label="Website link"><button type="button" class="small aslp-btn" data-copy="sdlg-url">Copy link</button></div>
   <div id="sdlg-page" hidden><div class="muted" style="font-size:12px;margin:10px 0 4px">Link to the page you're on now:</div>
     <div class="copy-row"><input type="text" id="sdlg-page-url" readonly aria-label="Link to this page"><button type="button" class="small" data-copy="sdlg-page-url">Copy</button></div></div>
@@ -1804,7 +1804,7 @@ function renderAccess() {
   // admins, CWG leads and view-only accounts are managed in one place: the ASLP website console
   card.querySelector(".access-grid").hidden = true; $("acc-save").hidden = true;
   $("acc-title").textContent = "Admins and CWG leads";
-  $("acc-help").innerHTML = `<p>Only admins, CWG leads and view-only accounts can sign in, each with a Gmail address. ${leadOnly || viewer.view_only ? "The ASLP admins manage them" : "Manage them"} in the <a href="https://salvationarmy-aslp.org/#/console" target="_blank" rel="noopener">ASLP website console</a>, under <strong>Access</strong>.</p>`;
+  $("acc-help").innerHTML = `<p>Admins, CWG leads and view-only accounts sign in with their email and own PIN; each territory's CWG members and contact persons sign in with their email and their CWG's PIN, and can update only their own territory. ${leadOnly || viewer.view_only ? "The ASLP admins manage them" : "Manage them"} in the <a href="https://asia-sharing-and-learning-programme.github.io/#/console" target="_blank" rel="noopener">ASLP website console</a>, under <strong>Access</strong>.</p>`;
 }
 function renderLeadDetails() {
   const card = $("leads-card");
@@ -2707,17 +2707,13 @@ $("auth-btn").addEventListener("click", () => {
     + (focalNames.length ? `<li><strong>CD Focal Person</strong> for ${focalNames.map(esc).join(", ")} — use <strong>Update</strong> to change the status and CD Strategy details.</li>` : "")
     + (!isEditor && !focalNames.length ? `<li>This email has no access on this site yet. Please contact the SWI-SAID Asia Programme Manager.</li>` : "")
     + `</ul>` : "";
-  $("adlg-title").textContent = signedIn ? "Signed in" : "Or email me a sign-in link instead";
-  $("adlg-title").classList.toggle("alt-title", !signedIn);
+  $("adlg-title").textContent = "Signed in"; $("adlg-title").hidden = !signedIn;
+  $("adlg-in").hidden = true; $("adlg-sent").hidden = true; $("adlg-limit").innerHTML = "";
   $("adlg-pin").hidden = signedIn;
   if (!signedIn && window.ASLPPin) ASLPPin.mount($("pin-box"), db, { onSignedIn: async () => { $("adlg").close(); await load(); applyMode(); toast("Signed in"); ASLPPin.altPrompt(db); } });
-  $("adlg-go").textContent = signedIn ? "Sign out" : "Email me a sign-in link";
+  $("adlg-go").textContent = "Sign out";
   $("adlg-go").disabled = false;
-  $("adlg-go").hidden = false; $("adlg-code").hidden = true;
-  if (!signedIn) {
-    signinState = null; renderSigninLimit(); refreshSigninLimit();
-    rpc("signin_status_for", { p_email: "" }).then(r => { if (r && r.limit) { signinLimitN = r.limit; if (!signinState) renderSigninLimit(); } }).catch(() => {});
-  }
+  $("adlg-go").hidden = !signedIn; $("adlg-code").hidden = true;
   $("adlg").showModal();
   const ga = $("go-admin"); if (ga) ga.addEventListener("click", () => $("adlg").close());
 });
@@ -2776,6 +2772,7 @@ function renderRoleHelp() {}   // kept for older calls: access is set by admins,
 $("adlg-form").addEventListener("submit", async e => {
   e.preventDefault();
   if (viewer.email) { await db.auth.signOut(); $("adlg").close(); viewer = { email: "", is_coordinator: false }; await load(); toast("Signed out"); return; }
+  return;   // signing in is with email and PIN only (above); no sign-in emails are sent
   const email = normEmail($("a-email").value);
   if (!validEmail(email)) { $("adlg-err").textContent = "Please enter a valid email address."; return; }
   $("adlg-go").disabled = true; $("adlg-err").textContent = "";
