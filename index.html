@@ -1886,92 +1886,12 @@ $("acc-save").addEventListener("click", async () => {
   finally { b.disabled = false; }
 });
 
-/* ---------- update several territories from the Excel template (admins and CWG leads) ---------- */
-const xlText = c => { let v = c && c.value; if (v == null) return ""; if (v instanceof Date) return v.toISOString().slice(0, 10);
-  if (typeof v === "object") { if (v.richText) v = v.richText.map(x => x.text).join(""); else if (v.text != null) v = v.text; else if (v.result != null) v = v.result; else if (v.hyperlink) v = v.hyperlink; else v = ""; }
-  return String(v).trim(); };
-// dates come as real dates, or as text like 20/11/2026 or 2026-11-20
-const xlDate = s => { if (!s) return ""; if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/); return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null; };
-function xlCds(wb) {
-  const rows = {}, warn = [], row = id => (rows[id] = rows[id] || { territory: id, details: {} });
-  const byId = Object.fromEntries(territories.map(t => [t.id, t])), byName = Object.fromEntries(territories.map(t => [String(t.name).toLowerCase(), t.id]));
-  const stKey = Object.fromEntries(STATUSES.map(s => [s.label.toLowerCase(), s.key]));
-  const ws = wb.getWorksheet("CD Strategies"); if (!ws || !wb.getWorksheet("Approvals")) throw new Error("This isn't the CD Strategies template. Download your CWG's template here and try again.");
-  const same = (a, b) => String(a || "").trim() === String(b || "").trim(), inFile = new Set();
-  ws.eachRow((r, n) => { if (n < 2) return; const id = xlText(r.getCell(1)); if (!id) return;
-    const v = k => xlText(r.getCell(k)), t = byId[id]; if (!t) return warn.push(`CD Strategies, row ${n}: unknown territory ID "${id}".`); inFile.add(id);
-    const e = row(id), d = e.details, txt = (k, f) => { const x = v(k); if (x && !same(x === "-" ? "" : x, t[f])) d[f] = x === "-" ? "" : x; };
-    if (v(4)) { const k = stKey[v(4).toLowerCase()]; if (!k) warn.push(`${t.name}: "${v(4)}" isn't a status.`); else if (k !== t.status) { e.status = k;
-      if (v(5)) { const dt = xlDate(v(5)); if (dt) e.statusDate = dt; else warn.push(`${t.name}: the status date "${v(5)}" isn't a date.`); } } }
-    const y1 = v(6), y2 = v(7);
-    if (y1 || y2) { if (!(y1 && y2)) warn.push(`${t.name}: pick both the start and the end year of the strategy period.`);
-      else if (+y2 < +y1) warn.push(`${t.name}: the strategy period ends before it starts.`);
-      else if (!same(`${y1}–${y2}`, String(t.strategyPeriod || "").replace(/(\d{4})\s*[-–—]\s*(\d{4})/, "$1–$2"))) d.strategyPeriod = `${y1}–${y2}`; }
-    if (v(8) && !same(v(8), t.target)) d.target = v(8);
-    txt(9, "docLink"); txt(10, "focal"); txt(11, "focalRole");
-    if (v(12)) { const held = /^y/i.test(v(12)), c0 = t.consultation || {};
-      if (!held) { if (c0.held !== false) d.consultation = { held: false }; }
-      else { const f = xlDate(v(13)), to = xlDate(v(14)) || f, tm = /during/i.test(v(15)) ? "during" : /before/i.test(v(15)) ? "before" : "";
-        if (!f || !tm) warn.push(`${t.name}: for a consultation / workshop, give the start date and whether it was before or during drafting.`);
-        else if (!(c0.held && c0.from === f && (c0.to || c0.from) === to && c0.timing === tm)) d.consultation = { held: true, from: f, to, timing: tm }; } }
-  });
-  const ap = wb.getWorksheet("Approvals"), apps = {}; let aid = "";
-  ap.eachRow({ includeEmpty: true }, (r, n) => { if (n < 2) return; const rid = xlText(r.getCell(1)); if (rid) aid = rid; if (!aid || !byId[aid]) return;
-    const body = xlText(r.getCell(3)), raw = xlText(r.getCell(4)); apps[aid] = apps[aid] || []; if (!body && !raw) return;
-    if (!body) return warn.push(`Approvals, ${byId[aid].name}: an approval dated ${raw} has no approving body, so it was left out.`);
-    const dt = xlDate(raw); if (dt === null) return warn.push(`Approvals, ${byId[aid].name}: "${raw}" isn't a date.`);
-    apps[aid].push({ body, date: dt || "" }); });
-  // approvals: for each territory in the file, its rows replace what's there, sent only when they differ
-  const key = a => (a || []).map(x => `${String(x.body).trim()}|${String(x.date || "").slice(0, 10)}`).sort().join(";");
-  inFile.forEach(id => { if (key(apps[id]) !== key(byId[id].approvals)) row(id).details.approvals = apps[id] || []; });
-  Object.keys(apps).filter(id => !inFile.has(id)).forEach(id => warn.push(`Approvals: ${byId[id] ? byId[id].name : id} isn't in this CWG's file, so its approvals were left out.`));
-  return { rows: Object.values(rows).filter(e => e.status || Object.keys(e.details).length), warn };
-}
-// the CWG's template, filled in with the CD Strategies as they are now
-const xlCwgs = () => isFullAdmin ? [...new Set(territories.map(t => cwgOf(t)).filter(c => c && c !== UNASSIGNED))].sort() : (viewer.lead_cwgs || []);
-async function xlTemplate(cwg, btn) {
-  const lbl = btn.textContent; btn.disabled = true; btn.textContent = "Preparing…";
-  try {
-    await loadScript("vendor/exceljs.min.js"); await loadScript("/aslp-xl.js");
-    const ts = territories.filter(t => cwgOf(t) === cwg).sort((a, b) => a.name.localeCompare(b.name));
-    const blob = await ASLPXL.cds({ cwg, terrs: ts, statuses: STATUSES.map(s => ({ key: s.key, label: s.label })) });
-    ASLPXL.save(blob, `ASLP-${cwg.replace(/\s+/g, "")}-CD-Strategies.xlsx`);
-  } catch (e) { console.error(e); toast("The template couldn't be made. Please try again."); }
-  btn.disabled = false; btn.textContent = lbl;
-}
-const XL_LABELS = { strategyPeriod: "Strategy period", target: "Target", docLink: "Document link", focal: "Focal person", focalRole: "Focal person role", location: "Headquarters", countries: "Countries", offices: "Offices", consultation: "Consultation", approvals: "Approvals" };
 function renderXlUpload() {
   const card = $("xl-card"); const show = !!(db && isEditor && !viewer.view_only); card.hidden = !show;
   if (!show || card.dataset.ready) return; card.dataset.ready = "1";
   card.innerHTML = `<h2 style="margin-bottom:4px">Update from Excel</h2>
-    <div class="muted help"><ol style="margin:0 0 6px 18px;padding:0"><li>Download your CWG's template. It's filled in with the CD Strategies as they are now, with dropdowns for almost everything.</li><li>Change what needs changing and save it.</li><li>Upload it here, check what will change, then confirm.</li></ol>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px">${xlCwgs().map(c => `<button class="small" data-xl-cwg="${esc(c)}">Download the ${esc(c)} template</button>`).join("")}</div>
-    <p>${isFullAdmin ? "You can update every territory." : "You can update your own CWG's territories. Rows for others are skipped."} Each change goes into the territory's update history, marked as an Excel upload.</p></div>
-    <div class="field" style="max-width:480px;margin-top:8px"><label for="xl-in">Your filled-in template (.xlsx)</label><input type="file" id="xl-in" accept=".xlsx"></div><div id="xl-out" role="status"></div>`;
-  const out = $("xl-out");
-  card.querySelectorAll("[data-xl-cwg]").forEach(b => b.onclick = () => xlTemplate(b.dataset.xlCwg, b));
-  $("xl-in").addEventListener("change", async e => {
-    const file = e.target.files[0]; if (!file) return;
-    out.innerHTML = `<p class="muted">Reading ${esc(file.name)}…</p>`;
-    let parsed;
-    try { await loadScript("vendor/exceljs.min.js"); const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await file.arrayBuffer()); parsed = xlCds(wb); }
-    catch (err) { out.innerHTML = `<p class="xl-err">${esc(/zip|central directory|end of data/i.test(err.message || "") ? "That file couldn't be read. Please upload the template saved as .xlsx." : err.message || "That file couldn't be read.")}</p>`; return; }
-    const { rows, warn } = parsed, stLabel = Object.fromEntries(STATUSES.map(s => [s.key, s.label]));
-    const warnHtml = warn.length ? `<ul class="xl-warn">${warn.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : "";
-    if (!rows.length) { out.innerHTML = warnHtml + `<p class="muted">Nothing to update: the file matches what's on the website.</p>`; return; }
-    out.innerHTML = warnHtml + `<div class="tblwrap"><table class="xl-table"><thead><tr><th>Territory</th><th>Will change</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc((territories.find(t => t.id === r.territory) || {}).name || r.territory)}</td>
-      <td>${esc([r.status && `Status: ${stLabel[r.status]}`, ...Object.keys(r.details).map(k => XL_LABELS[k] || k)].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table></div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button class="primary small" id="xl-go">Update ${rows.length} ${rows.length === 1 ? "territory" : "territories"}</button><button class="small" id="xl-cancel">Cancel</button></div>`;
-    $("xl-cancel").onclick = () => { out.innerHTML = ""; e.target.value = ""; };
-    $("xl-go").onclick = async () => {
-      const b = $("xl-go"); b.disabled = true; b.textContent = "Updating…";
-      let res; try { res = await rpc("cds_upload", { p_file: file.name, p_rows: rows }); } catch (err) { b.disabled = false; b.textContent = "Try again"; toast(errMsg(err)); return; }
-      const rs = (res && res.results) || [], n = rs.filter(x => x.status === "updated").length, lbl = { updated: "Updated", nochange: "No change", skipped: "Skipped", error: "Not updated" };
-      out.innerHTML = `<p class="xl-ok"><strong>${n} ${n === 1 ? "territory" : "territories"} updated</strong> from ${esc(file.name)}.</p>
-        <div class="tblwrap"><table class="xl-table"><thead><tr><th>Territory</th><th>Result</th></tr></thead><tbody>${rs.map(x => `<tr class="xl-${x.status}"><td>${esc(x.name || x.territory)}</td><td><strong>${lbl[x.status] || x.status}</strong>${x.changes && x.changes.length ? `: ${esc(x.changes.join(", "))}` : ""}${x.message ? `. ${esc(x.message)}` : ""}</td></tr>`).join("")}</tbody></table></div>`;
-      e.target.value = ""; if (n) { toast(`${n} updated from Excel.`); load(true); }
-    };
-  });
+    <div class="muted help"><p>Each CWG has one Excel file for both websites: the territory profiles, the CD Strategies and the approvals, on separate sheets. Download it, change what needs changing, and upload it in the ASLP website console. It updates the CD Strategies here and the profiles there, and each change goes into the territory's update history.</p></div>
+    <div style="margin-top:8px"><a class="pill-btn pill-fill" style="text-decoration:none;display:inline-block" href="/#/console/territory">Open the Excel update in the ASLP website console</a></div>`;
 }
 
 /* ---------- database tab ---------- */
